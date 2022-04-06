@@ -137,8 +137,7 @@ public class DexBackedMethod extends BaseMethodReference implements Method {
 
     
     public Set<? extends Annotation> getAnnotations() {
-        Set<BaseAnnotation> ret = new HashSet();
-        ret.addAll(AnnotationsDirectory.getAnnotations(this.dexFile, this.methodAnnotationSetOffset));
+        Set<BaseAnnotation> ret = new HashSet<>(AnnotationsDirectory.getAnnotations(this.dexFile, this.methodAnnotationSetOffset));
         if (this.methodReplace != null) {
             ret.add(this.methodReplace);
         }

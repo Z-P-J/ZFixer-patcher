@@ -296,7 +296,6 @@ public class ClassDefinition {
 
         for (Object virtualMethod : virtualMethods) {
             Method method = (Method) virtualMethod;
-            System.out.println("writeVirtualMethods method=" + method.getName());
             if (modifieds != null && modifieds.contains(method)) {
                 ((DexBackedMethod) method).setMethodReplace(new MethodFixAnnotaion(method.getDefiningClass(), method.getName()));
             }

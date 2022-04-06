@@ -144,8 +144,9 @@ public class FixClassDefinition extends ClassDefinition {
         }
 
         for (Object virtualMethod : virtualMethods) {
-            FixMethod method = new FixMethod((Method) virtualMethod);
-            System.out.println("writeVirtualMethods method=" + method.getName());
+//            FixMethod method = new FixMethod((Method) virtualMethod);
+            Method method = (Method) virtualMethod;
+            System.out.println("writeVirtualMethods method=" + method.getName() + " virtualMethod=" + virtualMethod + " contains=" + modifieds.contains(method));
             if (modifieds != null && modifieds.contains(method)) {
                 ((DexBackedMethod) virtualMethod).setMethodReplace(new MethodFixAnnotaion(method.getDefiningClass(), method.getName()));
             }
@@ -185,38 +186,5 @@ public class FixClassDefinition extends ClassDefinition {
 
         }
         Patcher.clear();
-
-//        writer.write("\n.method public test2222(Ljava/lang/String;)V\n" +
-//                "    .locals 2\n" +
-//                "    .annotation runtime Lcom/alipay/euler/andfix/annotation/MethodReplace;\n" +
-//                "        method = \"test2\"\n" +
-//                "        clazz = \"com.zpj.sdk.TestSdk\"\n" +
-//                "    .end annotation\n" +
-//                "\n" +
-//                "    .line 25\n" +
-//                "    iget-object v0, p0, Lcom/zpj/sdk/TestSdk;->test:Lcom/zpj/sdk/Test;\n" +
-//                "\n" +
-//                "    const-string v1, \"test2\"\n" +
-//                "\n" +
-//                "    invoke-virtual {v0, v1}, Lcom/zpj/sdk/Test;->test(Ljava/lang/String;)V\n" +
-//                "\n" +
-//                "    .line 26\n" +
-//                "    iget-object v0, p0, Lcom/zpj/sdk/TestSdk;->context:Landroid/content/Context;\n" +
-//                "\n" +
-//                "    invoke-virtual {v0}, Landroid/content/Context;->getApplicationContext()Landroid/content/Context;\n" +
-//                "\n" +
-//                "    move-result-object v0\n" +
-//                "\n" +
-//                "    const/4 v1, 0x0\n" +
-//                "\n" +
-//                "    invoke-static {v0, p1, v1}, Landroid/widget/Toast;->makeText(Landroid/content/Context;Ljava/lang/CharSequence;I)Landroid/widget/Toast;\n" +
-//                "\n" +
-//                "    move-result-object p1\n" +
-//                "\n" +
-//                "    invoke-virtual {p1}, Landroid/widget/Toast;->show()V\n" +
-//                "\n" +
-//                "    return-void\n" +
-//                ".end method");
-
     }
 }

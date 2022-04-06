@@ -72,6 +72,9 @@ public class DexDiffer {
                     return;
                 }
 
+                String name = reference.getName();
+
+
                 System.out.println("compareMethod equel=" + reference.getImplementation().equals(object.getImplementation()));
 
                 if (!reference.getImplementation().equals(object.getImplementation())) {

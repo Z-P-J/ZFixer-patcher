@@ -250,6 +250,8 @@ public class FixMethodDefinition extends MethodDefinition {
                         String returnType = ((DexBackedMethodReference) reference).getReturnType();
                         List<String> parameterTypes = ((DexBackedMethodReference) reference).getParameterTypes();
 
+                        boolean isStatic = (opcode == Opcode.INVOKE_STATIC);
+
 
                         System.out.println("DexBackedMethodReference getDefiningClass=" + definingClass);
                         System.out.println("DexBackedMethodReference getName=" + name);
@@ -259,14 +261,12 @@ public class FixMethodDefinition extends MethodDefinition {
                         // TODO 替换方法
                         String key = returnType + "@" + name + "@" + parameterTypes;
                         if (Patcher.shouldInjectMethod(key)) {
-                            String getMethod = FixMethodBuilder.buildAccessMethod(name, parameterTypes, returnType, bugType, fixType);
+                            String getMethod = FixMethodBuilder.buildAccessMethod(name, parameterTypes, returnType, bugType, fixType, isStatic);
                             System.out.println("buildAccessMethod:\n\n" + getMethod + "\n\n");
                             Patcher.putNewMethod(key, getMethod);
                         }
 
                         return true;
-
-
                     }
                 }
             } else if (instruction instanceof DexBackedInstruction22c) {

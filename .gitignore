@@ -12,7 +12,6 @@ local.properties
 captures/
 .externalNativeBuild/
 .cxx/
-*.apk
 output.json
 
 # IntelliJ
@@ -28,3 +27,7 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+# ouput
+out
+out/*
