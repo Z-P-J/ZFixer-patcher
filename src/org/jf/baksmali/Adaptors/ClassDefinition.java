@@ -5,8 +5,8 @@
 
 package org.jf.baksmali.Adaptors;
 
+import com.zpj.hotfix.patcher.Patcher;
 import com.zpj.hotfix.patcher.annotation.MethodFixAnnotaion;
-import com.zpj.hotfix.patcher.diff.DiffInfo;
 import com.zpj.hotfix.patcher.utils.TypeGenUtil;
 import org.jf.baksmali.baksmaliOptions;
 import org.jf.dexlib2.AccessFlags;
@@ -242,10 +242,8 @@ public class ClassDefinition {
         boolean wroteHeader = false;
         Set<String> writtenMethods = new HashSet();
         Iterable directMethods;
-        Set<? extends Method> modifieds = null;
         if (this.classDef instanceof DexBackedClassDef) {
             directMethods = ((DexBackedClassDef)this.classDef).getDirectMethods(false);
-            modifieds = DiffInfo.getInstance().getModifiedMethods();
         } else {
             directMethods = this.classDef.getDirectMethods();
         }
@@ -253,7 +251,8 @@ public class ClassDefinition {
         for (Object directMethod : directMethods) {
             Method method = (Method) directMethod;
             System.out.println("writeDirectMethods method=" + method.getName());
-            if (modifieds != null && modifieds.contains(method)) {
+            if (this.classDef instanceof DexBackedClassDef
+                    && Patcher.isModifiedMethod((DexBackedClassDef) this.classDef, method)) {
                 ((DexBackedMethod) method).setMethodReplace(new MethodFixAnnotaion(method.getDefiningClass(), method.getName()));
             }
             if (!wroteHeader) {
@@ -286,17 +285,16 @@ public class ClassDefinition {
         boolean wroteHeader = false;
         Set<String> writtenMethods = new HashSet();
         Iterable virtualMethods;
-        Set<? extends Method> modifieds = null;
         if (this.classDef instanceof DexBackedClassDef) {
             virtualMethods = ((DexBackedClassDef)this.classDef).getVirtualMethods(false);
-            modifieds = DiffInfo.getInstance().getModifiedMethods();
         } else {
             virtualMethods = this.classDef.getVirtualMethods();
         }
 
         for (Object virtualMethod : virtualMethods) {
             Method method = (Method) virtualMethod;
-            if (modifieds != null && modifieds.contains(method)) {
+            if (this.classDef instanceof DexBackedClassDef
+                    && Patcher.isModifiedMethod((DexBackedClassDef) this.classDef, method)) {
                 ((DexBackedMethod) method).setMethodReplace(new MethodFixAnnotaion(method.getDefiningClass(), method.getName()));
             }
             if (!wroteHeader) {

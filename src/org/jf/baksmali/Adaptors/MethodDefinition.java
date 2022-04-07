@@ -134,10 +134,10 @@ public class MethodDefinition {
             try {
                 methodString = ReferenceUtil.getMethodDescriptor(method);
             } catch (Exception var12) {
-                throw ExceptionWithContext.withContext(var15, "Error while processing method", new Object[0]);
+                throw ExceptionWithContext.withContext(var15, "Error while processing method");
             }
 
-            throw ExceptionWithContext.withContext(var15, "Error while processing method %s", new Object[]{methodString});
+            throw ExceptionWithContext.withContext(var15, "Error while processing method %s", methodString);
         }
     }
 

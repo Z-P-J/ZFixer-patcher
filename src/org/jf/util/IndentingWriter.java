@@ -27,7 +27,7 @@ public class IndentingWriter extends Writer {
     }
 
     public void write(int chr) throws IOException {
-        System.out.println("crite: " + (char) (chr));
+//        System.out.println("crite: " + (char) (chr));
         if (chr == 10) {
             this.writer.write(newLine);
             this.beginningOfLine = true;
@@ -84,7 +84,7 @@ public class IndentingWriter extends Writer {
     }
 
     public void write(String s) throws IOException {
-        System.out.println("write: " + s);
+//        System.out.println("write: " + s);
         this.write((String)s, 0, s.length());
     }
 
@@ -180,7 +180,7 @@ public class IndentingWriter extends Writer {
     }
 
     public void printSignedIntAsDec(int value) throws IOException {
-        System.out.println("print: " + value);
+//        System.out.println("print: " + value);
         int bufferIndex = 15;
         if (value < 0) {
             value *= -1;

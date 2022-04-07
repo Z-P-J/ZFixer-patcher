@@ -7,19 +7,25 @@ package com.zpj.hotfix.patcher.fix;
 
 import com.zpj.hotfix.patcher.Patcher;
 import com.zpj.hotfix.patcher.annotation.MethodFixAnnotaion;
-import com.zpj.hotfix.patcher.diff.DiffInfo;
-import org.jf.baksmali.Adaptors.*;
+import org.jf.baksmali.Adaptors.ClassDefinition;
+import org.jf.baksmali.Adaptors.CommentingIndentingWriter;
+import org.jf.baksmali.Adaptors.MethodDefinition;
 import org.jf.baksmali.baksmaliOptions;
 import org.jf.dexlib2.AccessFlags;
 import org.jf.dexlib2.dexbacked.DexBackedClassDef;
 import org.jf.dexlib2.dexbacked.DexBackedMethod;
-import org.jf.dexlib2.iface.*;
+import org.jf.dexlib2.iface.ClassDef;
+import org.jf.dexlib2.iface.Method;
+import org.jf.dexlib2.iface.MethodImplementation;
 import org.jf.dexlib2.util.ReferenceUtil;
 import org.jf.util.IndentingWriter;
 import org.jf.util.StringUtils;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 public class FixClassDefinition extends ClassDefinition {
     public final baksmaliOptions options;
@@ -135,10 +141,8 @@ public class FixClassDefinition extends ClassDefinition {
         boolean wroteHeader = false;
         Set<String> writtenMethods = new HashSet();
         Iterable virtualMethods;
-        Set<? extends Method> modifieds = null;
         if (this.classDef instanceof DexBackedClassDef) {
             virtualMethods = ((DexBackedClassDef)this.classDef).getVirtualMethods(false);
-            modifieds = DiffInfo.getInstance().getModifiedMethods();
         } else {
             virtualMethods = this.classDef.getVirtualMethods();
         }
@@ -146,9 +150,10 @@ public class FixClassDefinition extends ClassDefinition {
         for (Object virtualMethod : virtualMethods) {
 //            FixMethod method = new FixMethod((Method) virtualMethod);
             Method method = (Method) virtualMethod;
-            System.out.println("writeVirtualMethods method=" + method.getName() + " virtualMethod=" + virtualMethod + " contains=" + modifieds.contains(method));
-            if (modifieds != null && modifieds.contains(method)) {
-                ((DexBackedMethod) virtualMethod).setMethodReplace(new MethodFixAnnotaion(method.getDefiningClass(), method.getName()));
+            System.out.println("writeVirtualMethods method=" + method.getName() + " virtualMethod=" + virtualMethod);
+            if (this.classDef instanceof DexBackedClassDef
+                    && Patcher.isModifiedMethod((DexBackedClassDef) this.classDef, method)) {
+                ((DexBackedMethod) method).setMethodReplace(new MethodFixAnnotaion(method.getDefiningClass(), method.getName()));
             }
             if (!wroteHeader) {
                 writer.write("\n\n");

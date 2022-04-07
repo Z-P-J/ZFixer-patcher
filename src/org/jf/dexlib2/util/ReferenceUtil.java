@@ -5,20 +5,16 @@
 
 package org.jf.dexlib2.util;
 
-import java.io.IOException;
-import java.io.Writer;
-import java.util.Iterator;
-
-import com.zpj.hotfix.patcher.diff.DiffInfo;
+import com.zpj.hotfix.patcher.Patcher;
 import com.zpj.hotfix.patcher.utils.TypeGenUtil;
 import org.jf.dexlib2.dexbacked.DexBackedClassDef;
 import org.jf.dexlib2.dexbacked.DexBackedField;
-import org.jf.dexlib2.iface.reference.FieldReference;
-import org.jf.dexlib2.iface.reference.MethodReference;
-import org.jf.dexlib2.iface.reference.Reference;
-import org.jf.dexlib2.iface.reference.StringReference;
-import org.jf.dexlib2.iface.reference.TypeReference;
+import org.jf.dexlib2.iface.reference.*;
 import org.jf.util.StringUtils;
+
+import java.io.IOException;
+import java.io.Writer;
+import java.util.Iterator;
 
 public final class ReferenceUtil {
     public static String getMethodDescriptor(MethodReference methodReference) {
@@ -28,9 +24,8 @@ public final class ReferenceUtil {
     public static String getMethodDescriptor(MethodReference methodReference, boolean useImplicitReference) {
         StringBuilder sb = new StringBuilder();
         if (!useImplicitReference) {
-            DiffInfo info = DiffInfo.getInstance();
             String clazz = methodReference.getDefiningClass();
-            if (info.getModifiedClasses(clazz) != null) {
+            if (Patcher.getModifiedClasses(clazz) != null) {
                 clazz = TypeGenUtil.newType(clazz);
             }
 
@@ -58,9 +53,8 @@ public final class ReferenceUtil {
 
     public static void writeMethodDescriptor(Writer writer, MethodReference methodReference, boolean useImplicitReference) throws IOException {
         if (!useImplicitReference) {
-            DiffInfo info = DiffInfo.getInstance();
             String clazz = methodReference.getDefiningClass();
-            if (info.getModifiedClasses(clazz) != null) {
+            if (Patcher.getModifiedClasses(clazz) != null) {
                 clazz = TypeGenUtil.newType(clazz);
             }
 
@@ -84,10 +78,10 @@ public final class ReferenceUtil {
     public static String getFieldDescriptor(FieldReference fieldReference, boolean useImplicitReference) {
         StringBuilder sb = new StringBuilder();
         if (!useImplicitReference) {
-            DiffInfo info = DiffInfo.getInstance();
             String clazz = fieldReference.getDefiningClass();
             System.out.println("getFieldDescriptor getDefiningClass=" + clazz);
-            if (info.getModifiedClasses(clazz) != null && !isStaticFiled(info.getModifiedClasses(clazz), fieldReference)) {
+            DexBackedClassDef modifiedClazz = Patcher.getModifiedClasses(clazz);
+            if (modifiedClazz != null && !isStaticFiled(modifiedClazz, fieldReference)) {
                 clazz = TypeGenUtil.newType(clazz);
             }
             sb.append(clazz);
@@ -115,9 +109,9 @@ public final class ReferenceUtil {
 
     public static void writeFieldDescriptor(Writer writer, FieldReference fieldReference, boolean implicitReference) throws IOException {
         if (!implicitReference) {
-            DiffInfo info = DiffInfo.getInstance();
             String clazz = fieldReference.getDefiningClass();
-            if (info.getModifiedClasses(clazz) != null && !isStaticFiled(info.getModifiedClasses(clazz), fieldReference)) {
+            DexBackedClassDef modifiedClazz = Patcher.getModifiedClasses(clazz);
+            if (modifiedClazz != null && !isStaticFiled(modifiedClazz, fieldReference)) {
                 clazz = TypeGenUtil.newType(clazz);
             }
 
