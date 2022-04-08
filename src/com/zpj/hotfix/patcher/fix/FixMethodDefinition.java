@@ -43,7 +43,7 @@ import java.util.*;
 
 public class FixMethodDefinition extends MethodDefinition {
 
-    public final ClassDefinition classDef;
+    public final FixClassDefinition classDef;
     public final Method method;
     public final MethodImplementation methodImpl;
     public final ImmutableList<Instruction> instructions;
@@ -58,7 +58,7 @@ public class FixMethodDefinition extends MethodDefinition {
     private final String bugType;
     private final String fixType;
 
-    public FixMethodDefinition(ClassDefinition classDef, Method method, MethodImplementation methodImpl) {
+    public FixMethodDefinition(FixClassDefinition classDef, Method method, MethodImplementation methodImpl) {
         super(classDef, method, methodImpl);
         this.classDef = classDef;
         this.method = method;
@@ -133,7 +133,7 @@ public class FixMethodDefinition extends MethodDefinition {
         } catch (Exception var15) {
             String methodString;
             try {
-                methodString = ReferenceUtil.getMethodDescriptor(method);
+                methodString = ReferenceUtil.getMethodDescriptor(this.classDef.classDef, method, false);
             } catch (Exception var12) {
                 throw ExceptionWithContext.withContext(var15, "Error while processing method", new Object[0]);
             }
@@ -260,10 +260,10 @@ public class FixMethodDefinition extends MethodDefinition {
 
                         // TODO 替换方法
                         String key = returnType + "@" + name + "@" + parameterTypes;
-                        if (Patcher.shouldInjectMethod(key)) {
+                        if (this.classDef.shouldInjectMethod(key)) {
                             String getMethod = FixMethodBuilder.buildAccessMethod(name, parameterTypes, returnType, bugType, fixType, isStatic);
                             System.out.println("buildAccessMethod:\n\n" + getMethod + "\n\n");
-                            Patcher.putNewMethod(key, getMethod);
+                            this.classDef.putNewMethod(key, getMethod);
                         }
 
                         return true;
@@ -295,10 +295,10 @@ public class FixMethodDefinition extends MethodDefinition {
                         String getMethodName = "_get_" + name;
                         String key = type + "@" + getMethodName;
 
-                        if (Patcher.shouldInjectMethod(key)) {
+                        if (this.classDef.shouldInjectMethod(key)) {
                             String getMethod = FixMethodBuilder.buildGetMethod(getMethodName, name, type, bugType, fixType);
                             System.out.println("buildGetMethod:\n\n" + getMethod + "\n\n");
-                            Patcher.putNewMethod(key, getMethod);
+                            this.classDef.putNewMethod(key, getMethod);
                         }
 
 
@@ -335,10 +335,10 @@ public class FixMethodDefinition extends MethodDefinition {
                         String setMethodName = "_set_" + name;
 
                         String key = setMethodName + "@" + type;
-                        if (Patcher.shouldInjectMethod(key)) {
+                        if (this.classDef.shouldInjectMethod(key)) {
                             String getMethod = FixMethodBuilder.buildSetMethod(setMethodName, name, bugType, fixType);
                             System.out.println("buildSetMethod:\n\n" + getMethod + "\n\n");
-                            Patcher.putNewMethod(key, getMethod);
+                            this.classDef.putNewMethod(key, getMethod);
                         }
 
 

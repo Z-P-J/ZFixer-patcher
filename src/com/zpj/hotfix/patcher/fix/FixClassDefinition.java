@@ -5,36 +5,33 @@
 
 package com.zpj.hotfix.patcher.fix;
 
-import com.zpj.hotfix.patcher.Patcher;
 import com.zpj.hotfix.patcher.annotation.MethodFixAnnotaion;
+import com.zpj.hotfix.patcher.diff.DiffClassInfo;
 import org.jf.baksmali.Adaptors.ClassDefinition;
 import org.jf.baksmali.Adaptors.CommentingIndentingWriter;
 import org.jf.baksmali.Adaptors.MethodDefinition;
 import org.jf.baksmali.baksmaliOptions;
 import org.jf.dexlib2.AccessFlags;
-import org.jf.dexlib2.dexbacked.DexBackedClassDef;
 import org.jf.dexlib2.dexbacked.DexBackedMethod;
-import org.jf.dexlib2.iface.ClassDef;
-import org.jf.dexlib2.iface.Method;
 import org.jf.dexlib2.iface.MethodImplementation;
 import org.jf.dexlib2.util.ReferenceUtil;
 import org.jf.util.IndentingWriter;
 import org.jf.util.StringUtils;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public class FixClassDefinition extends ClassDefinition {
+
+    private final Map<String, String> injectMethodMap = new HashMap<>();
+
     public final baksmaliOptions options;
-    public final ClassDef classDef;
+    public final FixClassDef classDef;
 
     private final String bugType;
     private final String fixType;
 
-    public FixClassDefinition(baksmaliOptions options, ClassDef classDef) {
+    public FixClassDefinition(baksmaliOptions options, FixClassDef classDef) {
         super(options, classDef);
         this.options = options;
         this.classDef = classDef;
@@ -140,21 +137,15 @@ public class FixClassDefinition extends ClassDefinition {
     private void writeVirtualMethods(IndentingWriter writer, Set<String> directMethods) throws IOException {
         boolean wroteHeader = false;
         Set<String> writtenMethods = new HashSet();
-        Iterable virtualMethods;
-        if (this.classDef instanceof DexBackedClassDef) {
-            virtualMethods = ((DexBackedClassDef)this.classDef).getVirtualMethods(false);
-        } else {
-            virtualMethods = this.classDef.getVirtualMethods();
-        }
 
-        for (Object virtualMethod : virtualMethods) {
-//            FixMethod method = new FixMethod((Method) virtualMethod);
-            Method method = (Method) virtualMethod;
-            System.out.println("writeVirtualMethods method=" + method.getName() + " virtualMethod=" + virtualMethod);
-            if (this.classDef instanceof DexBackedClassDef
-                    && Patcher.isModifiedMethod((DexBackedClassDef) this.classDef, method)) {
-                ((DexBackedMethod) method).setMethodReplace(new MethodFixAnnotaion(method.getDefiningClass(), method.getName()));
+        for (DexBackedMethod method : this.classDef.getVirtualMethods()) {
+            System.out.println("writeVirtualMethods method=" + method.getName() + " virtualMethod=" + method);
+
+            DiffClassInfo classInfo = this.classDef.getClassInfo();
+            if (classInfo.isModifiedMethod(method)) {
+                method.setMethodReplace(new MethodFixAnnotaion(method.getDefiningClass(), method.getName()));
             }
+
             if (!wroteHeader) {
                 writer.write("\n\n");
                 writer.write("# virtual methods");
@@ -162,7 +153,7 @@ public class FixClassDefinition extends ClassDefinition {
             }
 
             writer.write(10);
-            String methodString = ReferenceUtil.getMethodDescriptor(method, true);
+            String methodString = ReferenceUtil.getMethodDescriptor(this.classDef, method, true);
             System.out.println("writeVirtualMethods methodString=" + methodString);
             IndentingWriter methodWriter = writer;
             if (!writtenMethods.add(methodString)) {
@@ -183,13 +174,25 @@ public class FixClassDefinition extends ClassDefinition {
             }
         }
 
-        List<String> newMethodList = Patcher.getInjectMethodList();
+        List<String> newMethodList = getInjectMethodList();
         System.out.println("writeVirtualMethods newMethodSize=" + newMethodList.size());
         for (String newMethod : newMethodList) {
             writer.write("\n\n");
             writer.write(newMethod);
 
         }
-        Patcher.clear();
     }
+
+    public void putNewMethod(String key, String method) {
+        injectMethodMap.put(key, method);
+    }
+
+    public boolean shouldInjectMethod(String key) {
+        return !injectMethodMap.containsKey(key);
+    }
+
+    public List<String> getInjectMethodList() {
+        return new ArrayList<>(injectMethodMap.values());
+    }
+
 }

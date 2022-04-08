@@ -1,6 +1,7 @@
 package com.zpj.hotfix.patcher;
 
 import com.zpj.hotfix.patcher.diff.DiffClassInfo;
+import com.zpj.hotfix.patcher.fix.FixClassDef;
 import com.zpj.hotfix.patcher.fix.FixClassDefinition;
 import org.apache.commons.io.FileUtils;
 import org.jf.baksmali.Adaptors.ClassDefinition;
@@ -9,7 +10,6 @@ import org.jf.dexlib2.DexFileFactory;
 import org.jf.dexlib2.Opcodes;
 import org.jf.dexlib2.dexbacked.DexBackedClassDef;
 import org.jf.dexlib2.dexbacked.DexBackedDexFile;
-import org.jf.dexlib2.dexbacked.DexBackedMethod;
 import org.jf.dexlib2.iface.ClassDef;
 import org.jf.dexlib2.iface.Method;
 import org.jf.dexlib2.util.SyntheticAccessorResolver;
@@ -18,11 +18,12 @@ import org.jf.util.IndentingWriter;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 public class Patcher {
-
-    private static final Map<String, String> injectMethodMap = new HashMap<>();
 
     private static final Map<DexBackedClassDef, DiffClassInfo> DIFF_CLASS_INFO_MAP = new HashMap<>();
 
@@ -33,28 +34,10 @@ public class Patcher {
     protected File out;
 
     public static void start() {
-        injectMethodMap.clear();
         new Patcher(new File("fix.apk"), new File("bug.apk"),
                 "patch", new File("output"))
                 .doPatch();
     }
-
-    public static void putNewMethod(String key, String method) {
-        injectMethodMap.put(key, method);
-    }
-
-    public static boolean shouldInjectMethod(String key) {
-        return !injectMethodMap.containsKey(key);
-    }
-
-    public static List<String> getInjectMethodList() {
-        return new ArrayList<>(injectMethodMap.values());
-    }
-
-    public static void clear() {
-        injectMethodMap.clear();
-    }
-
 
     public static boolean isModifiedClass(DexBackedClassDef classDef) {
         DiffClassInfo classInfo = DIFF_CLASS_INFO_MAP.get(classDef);
@@ -140,7 +123,6 @@ public class Patcher {
             for (DexBackedClassDef newClazz : newDexFile.getClasses()) {
                 DexBackedClassDef oldClazz = oldClassMap.get(newClazz);
                 if (oldClazz == null) {
-                    // TODO 新增类
                     DIFF_CLASS_INFO_MAP.put(newClazz, new DiffClassInfo(null, newClazz));
                 } else {
                     DiffClassInfo diffClassInfo = new DiffClassInfo(oldClazz, newClazz);
@@ -195,12 +177,12 @@ public class Patcher {
         return code;
     }
 
-    public static String getFixSmali(ClassDef classDef, baksmaliOptions options) {
+    public static String getFixSmali(DexBackedClassDef classDef, baksmaliOptions options) {
         String code = null;
         try {
             StringWriter stringWriter = new StringWriter();
             IndentingWriter writer = new IndentingWriter(stringWriter);
-            FixClassDefinition classDefinition = new FixClassDefinition(options, classDef);
+            FixClassDefinition classDefinition = new FixClassDefinition(options, new FixClassDef(classDef, DIFF_CLASS_INFO_MAP.get(classDef)));
             classDefinition.writeTo(writer);
             writer.close();
             code = stringWriter.toString();

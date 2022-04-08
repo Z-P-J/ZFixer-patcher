@@ -7,7 +7,6 @@ package org.jf.baksmali.Adaptors;
 
 import com.zpj.hotfix.patcher.Patcher;
 import com.zpj.hotfix.patcher.annotation.MethodFixAnnotaion;
-import com.zpj.hotfix.patcher.utils.TypeGenUtil;
 import org.jf.baksmali.baksmaliOptions;
 import org.jf.dexlib2.AccessFlags;
 import org.jf.dexlib2.dexbacked.DexBackedClassDef;
@@ -97,7 +96,7 @@ public class ClassDefinition {
     private void writeClass(IndentingWriter writer) throws IOException {
         writer.write(".class ");
         this.writeAccessFlags(writer);
-        writer.write(TypeGenUtil.newType(this.classDef.getType()));
+        writer.write(this.classDef.getType());
         writer.write(10);
     }
 

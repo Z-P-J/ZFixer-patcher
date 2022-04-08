@@ -33,6 +33,10 @@ public class DiffClassInfo {
         return !addedMethods.isEmpty() || !modifiedMethods.isEmpty();
     }
 
+    public boolean isModifiedMethod(DexBackedMethod method) {
+        return !modifiedMethods.isEmpty() && modifiedMethods.contains(method);
+    }
+
     public DexBackedClassDef getOldClazz() {
         return oldClazz;
     }

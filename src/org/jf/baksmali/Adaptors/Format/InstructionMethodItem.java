@@ -5,8 +5,7 @@
 
 package org.jf.baksmali.Adaptors.Format;
 
-import com.zpj.hotfix.patcher.Patcher;
-import com.zpj.hotfix.patcher.utils.TypeGenUtil;
+import com.zpj.hotfix.patcher.fix.FixClassDef;
 import org.jf.baksmali.Adaptors.MethodDefinition;
 import org.jf.baksmali.Adaptors.MethodDefinition.InvalidSwitchPayload;
 import org.jf.baksmali.Adaptors.MethodItem;
@@ -18,6 +17,7 @@ import org.jf.dexlib2.ReferenceType.InvalidReferenceTypeException;
 import org.jf.dexlib2.VerificationError;
 import org.jf.dexlib2.dexbacked.DexBackedDexFile.InvalidItemIndex;
 import org.jf.dexlib2.dexbacked.instruction.DexBackedInstruction22c;
+import org.jf.dexlib2.iface.ClassDef;
 import org.jf.dexlib2.iface.instruction.*;
 import org.jf.dexlib2.iface.instruction.formats.Instruction20bc;
 import org.jf.dexlib2.iface.instruction.formats.Instruction31t;
@@ -154,15 +154,21 @@ public class InstructionMethodItem<T extends Instruction> extends MethodItem {
                     classContext = this.methodDef.method.getDefiningClass();
                 }
 
-                referenceString = ReferenceUtil.getReferenceString(reference, classContext);
-                System.out.println("referenceString=" + referenceString);
-                if (this.methodDef.method.getName().equals("<clinit>")) {
-                    String clazz = this.methodDef.method.getDefiningClass();
-                    if (Patcher.getModifiedClasses(clazz) != null) {
-                        referenceString = referenceString.replace(clazz, TypeGenUtil.newType(clazz));
-                    }
 
+                ClassDef classDef = this.methodDef.classDef.classDef;
+                if (classDef instanceof FixClassDef) {
+                    referenceString = ReferenceUtil.getReferenceString((FixClassDef) classDef, reference, classContext);
+                } else {
+                    referenceString = ReferenceUtil.getReferenceString(reference, classContext);
                 }
+                System.out.println("referenceString=" + referenceString);
+//                if (this.methodDef.method.getName().equals("<clinit>")) {
+//                    String clazz = this.methodDef.method.getDefiningClass();
+//                    if (Patcher.getModifiedClasses(clazz) != null) {
+//                        referenceString = referenceString.replace(clazz, TypeGenUtil.newType(clazz));
+//                    }
+//
+//                }
 
                 assert referenceString != null;
             } catch (InvalidItemIndex var10) {
