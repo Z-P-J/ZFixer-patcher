@@ -28,15 +28,10 @@ public class FixClassDefinition extends ClassDefinition {
     public final baksmaliOptions options;
     public final FixClassDef classDef;
 
-    private final String bugType;
-    private final String fixType;
-
     public FixClassDefinition(baksmaliOptions options, FixClassDef classDef) {
         super(options, classDef);
         this.options = options;
         this.classDef = classDef;
-        this.bugType = this.classDef.getType();
-        this.fixType = bugType.substring(0, bugType.length() - 1) + "_Fix;";
     }
 
     public void writeTo(IndentingWriter writer) throws IOException {
@@ -54,7 +49,7 @@ public class FixClassDefinition extends ClassDefinition {
     private void writeClass(IndentingWriter writer) throws IOException {
         writer.write(".class ");
         this.writeAccessFlags(writer);
-        writer.write(fixType);
+        writer.write(this.classDef.getFixType());
         writer.write(10);
     }
 
@@ -103,21 +98,21 @@ public class FixClassDefinition extends ClassDefinition {
 
     private void writeInstanceFields(IndentingWriter writer, Set<String> staticFields) throws IOException {
         writer.write("\n# instance fields\n" +
-                ".field private final mBugObj:" + bugType + "\n\n");
+                ".field private final mBugObj:" + this.classDef.getType() + "\n\n");
 
         // TODO
     }
 
     private Set<String> writeDirectMethods(IndentingWriter writer) throws IOException {
         writer.write("# direct methods\n" +
-                ".method public constructor <init>(" + bugType + ")V\n" +
+                ".method public constructor <init>(" + this.classDef.getType() + ")V\n" +
                 "    .registers 2\n" +
                 "    .param p1, \"mBugObj\"\n" +
                 "\n" +
                 "    .prologue\n" +
                 "    invoke-direct {p0}, Ljava/lang/Object;-><init>()V\n" +
                 "\n" +
-                "    iput-object p1, p0, " + fixType + "->mBugObj:" + bugType + "\n" +
+                "    iput-object p1, p0, " + this.classDef.getFixType() + "->mBugObj:" + this.classDef.getType() + "\n" +
                 "\n" +
                 "    return-void\n" +
                 ".end method\n");

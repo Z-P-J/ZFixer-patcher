@@ -1,6 +1,7 @@
 package com.zpj.hotfix.patcher;
 
 import com.zpj.hotfix.patcher.diff.DiffClassInfo;
+import com.zpj.hotfix.patcher.fix.AddedClassDefinition;
 import com.zpj.hotfix.patcher.fix.FixClassDef;
 import com.zpj.hotfix.patcher.fix.FixClassDefinition;
 import org.apache.commons.io.FileUtils;
@@ -34,7 +35,11 @@ public class Patcher {
     protected File out;
 
     public static void start() {
-        new Patcher(new File("fix.apk"), new File("bug.apk"),
+//        new Patcher(new File("fix.apk"), new File("bug.apk"),
+//                "patch", new File("output"))
+//                .doPatch();
+
+        new Patcher(new File("new2.apk"), new File("old.apk"),
                 "patch", new File("output"))
                 .doPatch();
     }
@@ -141,7 +146,7 @@ public class Patcher {
         baksmaliOptions options = new baksmaliOptions();
         options.deodex = false;
         options.noParameterRegisters = false;
-        options.useLocalsDirective = true;
+//        options.useLocalsDirective = true;
         options.useSequentialLabels = true;
         options.outputDebugInfo = true;
         options.addCodeOffsets = false;
@@ -182,7 +187,15 @@ public class Patcher {
         try {
             StringWriter stringWriter = new StringWriter();
             IndentingWriter writer = new IndentingWriter(stringWriter);
-            FixClassDefinition classDefinition = new FixClassDefinition(options, new FixClassDef(classDef, DIFF_CLASS_INFO_MAP.get(classDef)));
+            DiffClassInfo classInfo = DIFF_CLASS_INFO_MAP.get(classDef);
+
+            ClassDefinition classDefinition;
+            if (classInfo.isModified()) {
+                classDefinition = new FixClassDefinition(options, new FixClassDef(classDef, classInfo));
+            } else {
+                classDefinition = new AddedClassDefinition(options, classDef);
+            }
+
             classDefinition.writeTo(writer);
             writer.close();
             code = stringWriter.toString();

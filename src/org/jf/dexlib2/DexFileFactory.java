@@ -43,7 +43,9 @@ public final class DexFileFactory {
             while (enumeration.hasMoreElements()) {
 
                 ZipEntry entry = enumeration.nextElement();
-                if (entry.getName().endsWith(".dex")) {
+                System.out.println("entry=" + entry.getName());
+                String name = entry.getName();
+                if (!name.contains("/") && name.endsWith(".dex")) {
                     entries.add(entry);
                 }
             }

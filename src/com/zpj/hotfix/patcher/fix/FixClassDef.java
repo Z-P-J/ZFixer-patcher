@@ -23,7 +23,12 @@ public class FixClassDef extends BaseTypeReference implements ClassDef {
         this.classDef = classDef;
         this.classInfo = classInfo;
         String type = this.classDef.getType();
-        this.fixType = type.substring(0, type.length() - 1) + "_Fix;";
+        if (classInfo.isModified()) {
+            this.fixType = type.substring(0, type.length() - 1) + "_Fix;";
+        } else {
+            this.fixType = type;
+        }
+
     }
 
     public String getFixType() {

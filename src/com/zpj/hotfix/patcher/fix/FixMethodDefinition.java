@@ -22,9 +22,7 @@ import org.jf.dexlib2.dexbacked.instruction.DexBackedInstruction35c;
 import org.jf.dexlib2.dexbacked.reference.DexBackedMethodReference;
 import org.jf.dexlib2.iface.*;
 import org.jf.dexlib2.iface.debug.DebugItem;
-import org.jf.dexlib2.iface.instruction.Instruction;
-import org.jf.dexlib2.iface.instruction.OffsetInstruction;
-import org.jf.dexlib2.iface.instruction.ReferenceInstruction;
+import org.jf.dexlib2.iface.instruction.*;
 import org.jf.dexlib2.iface.instruction.formats.Instruction31t;
 import org.jf.dexlib2.iface.reference.FieldReference;
 import org.jf.dexlib2.iface.reference.MethodReference;
@@ -49,7 +47,7 @@ public class FixMethodDefinition extends MethodDefinition {
     public final ImmutableList<Instruction> instructions;
     public final List<Instruction> effectiveInstructions;
     public final ImmutableList<MethodParameter> methodParameters;
-    public RegisterFormatter registerFormatter;
+    public FixRegisterFormatter registerFormatter;
     private final MethodDefinition.LabelCache labelCache = new MethodDefinition.LabelCache();
     private final SparseIntArray packedSwitchMap;
     private final SparseIntArray sparseSwitchMap;
@@ -74,10 +72,10 @@ public class FixMethodDefinition extends MethodDefinition {
             this.packedSwitchMap = new SparseIntArray(0);
             this.sparseSwitchMap = new SparseIntArray(0);
             this.instructionOffsetMap = new InstructionOffsetMap(this.instructions);
-            int endOffset = this.instructionOffsetMap.getInstructionCodeOffset(this.instructions.size() - 1) + ((Instruction)this.instructions.get(this.instructions.size() - 1)).getCodeUnits();
+            int endOffset = this.instructionOffsetMap.getInstructionCodeOffset(this.instructions.size() - 1) + ((Instruction) this.instructions.get(this.instructions.size() - 1)).getCodeUnits();
 
-            for(int i = 0; i < this.instructions.size(); ++i) {
-                Instruction instruction = (Instruction)this.instructions.get(i);
+            for (int i = 0; i < this.instructions.size(); ++i) {
+                Instruction instruction = (Instruction) this.instructions.get(i);
                 Opcode opcode = instruction.getOpcode();
                 boolean valid;
                 int codeOffset;
@@ -86,7 +84,7 @@ public class FixMethodDefinition extends MethodDefinition {
                 if (opcode == Opcode.PACKED_SWITCH) {
                     valid = true;
                     codeOffset = this.instructionOffsetMap.getInstructionCodeOffset(i);
-                    targetOffset = codeOffset + ((OffsetInstruction)instruction).getCodeOffset();
+                    targetOffset = codeOffset + ((OffsetInstruction) instruction).getCodeOffset();
 
                     try {
                         targetOffset = this.findPayloadOffset(targetOffset, Opcode.PACKED_SWITCH_PAYLOAD);
@@ -98,7 +96,7 @@ public class FixMethodDefinition extends MethodDefinition {
                         if (this.packedSwitchMap.get(targetOffset, -1) != -1) {
                             payloadInstruction = this.findSwitchPayload(targetOffset, Opcode.PACKED_SWITCH_PAYLOAD);
                             targetOffset = endOffset;
-                            this.effectiveInstructions.set(i, new ImmutableInstruction31t(opcode, ((Instruction31t)instruction).getRegisterA(), endOffset - codeOffset));
+                            this.effectiveInstructions.set(i, new ImmutableInstruction31t(opcode, ((Instruction31t) instruction).getRegisterA(), endOffset - codeOffset));
                             this.effectiveInstructions.add(payloadInstruction);
                             endOffset += payloadInstruction.getCodeUnits();
                         }
@@ -108,7 +106,7 @@ public class FixMethodDefinition extends MethodDefinition {
                 } else if (opcode == Opcode.SPARSE_SWITCH) {
                     valid = true;
                     codeOffset = this.instructionOffsetMap.getInstructionCodeOffset(i);
-                    targetOffset = codeOffset + ((OffsetInstruction)instruction).getCodeOffset();
+                    targetOffset = codeOffset + ((OffsetInstruction) instruction).getCodeOffset();
 
                     try {
                         targetOffset = this.findPayloadOffset(targetOffset, Opcode.SPARSE_SWITCH_PAYLOAD);
@@ -120,7 +118,7 @@ public class FixMethodDefinition extends MethodDefinition {
                         if (this.sparseSwitchMap.get(targetOffset, -1) != -1) {
                             payloadInstruction = this.findSwitchPayload(targetOffset, Opcode.SPARSE_SWITCH_PAYLOAD);
                             targetOffset = endOffset;
-                            this.effectiveInstructions.set(i, new ImmutableInstruction31t(opcode, ((Instruction31t)instruction).getRegisterA(), endOffset - codeOffset));
+                            this.effectiveInstructions.set(i, new ImmutableInstruction31t(opcode, ((Instruction31t) instruction).getRegisterA(), endOffset - codeOffset));
                             this.effectiveInstructions.add(payloadInstruction);
                             endOffset += payloadInstruction.getCodeUnits();
                         }
@@ -150,8 +148,8 @@ public class FixMethodDefinition extends MethodDefinition {
         ImmutableList<MethodParameter> methodParameters = ImmutableList.copyOf(method.getParameters());
         UnmodifiableIterator var4 = methodParameters.iterator();
 
-        while(var4.hasNext()) {
-            MethodParameter parameter = (MethodParameter)var4.next();
+        while (var4.hasNext()) {
+            MethodParameter parameter = (MethodParameter) var4.next();
             writer.write(parameter.getType());
         }
 
@@ -194,19 +192,145 @@ public class FixMethodDefinition extends MethodDefinition {
         writer.write(this.method.getReturnType());
         writer.write(10);
         writer.indent(4);
+
+
+        if (this.registerFormatter == null) {
+            this.registerFormatter = new FixRegisterFormatter(this.classDef.options, this.methodImpl.getRegisterCount(), parameterRegisterCount);
+        }
+
+        boolean addSelfItem = false;
+
+        for (MethodItem methodItem : getMethodItems()) {
+            if (methodItem instanceof InstructionMethodItem) {
+                Instruction instruction = ((InstructionMethodItem<?>) methodItem).getInstruction();
+                Opcode opcode = instruction.getOpcode();
+                if (opcode == Opcode.INVOKE_DIRECT || opcode == Opcode.INVOKE_STATIC) {
+                    continue;
+                }
+                if (instruction instanceof ThreeRegisterInstruction) {
+                    int a = ((ThreeRegisterInstruction) instruction).getRegisterA();
+                    int b = ((ThreeRegisterInstruction) instruction).getRegisterB();
+                    int c = ((ThreeRegisterInstruction) instruction).getRegisterC();
+
+
+//                    if (!this.classDef.options.noParameterRegisters && register >= this.registerCount - this.parameterRegisterCount) {
+//                        writer.write(112);
+//                        writer.printSignedIntAsDec(register - (this.registerCount - this.parameterRegisterCount));
+//                    } else {
+//                        writer.write(118);
+//                        writer.printSignedIntAsDec(register);
+//                    }
+
+                    addSelfItem = registerFormatter.shouldAddSelfItem(a, b, c);
+
+                } else if (instruction instanceof TwoRegisterInstruction) {
+                    int a = ((TwoRegisterInstruction) instruction).getRegisterA();
+                    int b = ((TwoRegisterInstruction) instruction).getRegisterB();
+                    addSelfItem = registerFormatter.shouldAddSelfItem(a, b);
+                } else if (instruction instanceof OneRegisterInstruction) {
+                    int a = ((OneRegisterInstruction) instruction).getRegisterA();
+                    addSelfItem = registerFormatter.shouldAddSelfItem(a);
+                } else if (instruction instanceof FiveRegisterInstruction) {
+                    FiveRegisterInstruction fiveInstruction = (FiveRegisterInstruction) instruction;
+                    int regCount = fiveInstruction.getRegisterCount();
+
+                    switch (regCount) {
+                        case 1:
+                            addSelfItem = registerFormatter.shouldAddSelfItem(fiveInstruction.getRegisterC());
+                            break;
+                        case 2:
+                            addSelfItem = registerFormatter.shouldAddSelfItem(fiveInstruction.getRegisterC(),
+                                    fiveInstruction.getRegisterD());
+                            break;
+                        case 3:
+                            addSelfItem = registerFormatter.shouldAddSelfItem(fiveInstruction.getRegisterC(),
+                                    fiveInstruction.getRegisterD(), fiveInstruction.getRegisterE());
+                            break;
+                        case 4:
+                            addSelfItem = registerFormatter.shouldAddSelfItem(fiveInstruction.getRegisterC(),
+                                    fiveInstruction.getRegisterD(), fiveInstruction.getRegisterE(),
+                                    fiveInstruction.getRegisterF());
+                            break;
+                        case 5:
+                            addSelfItem = registerFormatter.shouldAddSelfItem(fiveInstruction.getRegisterC(),
+                                    fiveInstruction.getRegisterD(), fiveInstruction.getRegisterE(),
+                                    fiveInstruction.getRegisterF(), fiveInstruction.getRegisterG());
+                            break;
+                    }
+                } else if (instruction instanceof OneFixedFourParameterRegisterInstruction) {
+                    OneFixedFourParameterRegisterInstruction fiveInstruction = (OneFixedFourParameterRegisterInstruction) instruction;
+                    int regCount = fiveInstruction.getRegisterCount();
+
+                    switch (regCount) {
+                        case 1:
+                            addSelfItem = registerFormatter.shouldAddSelfItem(fiveInstruction.getRegisterFixedC());
+                            break;
+                        case 2:
+                            addSelfItem = registerFormatter.shouldAddSelfItem(fiveInstruction.getRegisterFixedC(),
+                                    fiveInstruction.getRegisterParameterD());
+                            break;
+                        case 3:
+                            addSelfItem = registerFormatter.shouldAddSelfItem(fiveInstruction.getRegisterFixedC(),
+                                    fiveInstruction.getRegisterParameterD(), fiveInstruction.getRegisterParameterE());
+                            break;
+                        case 4:
+                            addSelfItem = registerFormatter.shouldAddSelfItem(fiveInstruction.getRegisterFixedC(),
+                                    fiveInstruction.getRegisterParameterD(), fiveInstruction.getRegisterParameterE(),
+                                    fiveInstruction.getRegisterParameterF());
+                            break;
+                        case 5:
+                            addSelfItem = registerFormatter.shouldAddSelfItem(fiveInstruction.getRegisterFixedC(),
+                                    fiveInstruction.getRegisterParameterD(), fiveInstruction.getRegisterParameterE(),
+                                    fiveInstruction.getRegisterParameterF(), fiveInstruction.getRegisterParameterG());
+                            break;
+                    }
+
+                } else if (instruction instanceof RegisterRangeInstruction){
+                    RegisterRangeInstruction rangeInstruction = (RegisterRangeInstruction) instruction;
+                    if (rangeInstruction.getRegisterCount() != 0) {
+                        int startRegister = rangeInstruction.getStartRegister();
+                        int[] registers = new int[rangeInstruction.getRegisterCount()];
+                        for (int i = 0; i < registers.length; i++) {
+                            registers[i] = startRegister + i;
+                        }
+                        addSelfItem = registerFormatter.shouldAddSelfItem(registers);
+                    }
+                }
+
+
+                if (addSelfItem) {
+                    System.out.println(method.getName() + " opname=" + opcode.name + " addSelfItem=" + addSelfItem);
+                    break;
+                }
+
+
+            }
+
+
+        }
+
+
         if (this.classDef.options.useLocalsDirective) {
             writer.write(".locals ");
-            writer.printSignedIntAsDec(this.methodImpl.getRegisterCount() - parameterRegisterCount);
+            if (addSelfItem) {
+                writer.printSignedIntAsDec(this.methodImpl.getRegisterCount() - parameterRegisterCount + 1);
+            } else {
+                writer.printSignedIntAsDec(this.methodImpl.getRegisterCount() - parameterRegisterCount);
+            }
         } else {
             writer.write(".registers ");
-            writer.printSignedIntAsDec(this.methodImpl.getRegisterCount());
+            if (addSelfItem) {
+                writer.printSignedIntAsDec(this.methodImpl.getRegisterCount() + 1);
+            } else {
+                writer.printSignedIntAsDec(this.methodImpl.getRegisterCount());
+            }
         }
 
         writer.write(10);
         writeParameters(writer, this.method, this.methodParameters, this.classDef.options);
-        if (this.registerFormatter == null) {
-            this.registerFormatter = new RegisterFormatter(this.classDef.options, this.methodImpl.getRegisterCount(), parameterRegisterCount);
-        }
+//        if (this.registerFormatter == null) {
+//            this.registerFormatter = new RegisterFormatter(this.classDef.options, this.methodImpl.getRegisterCount(), parameterRegisterCount);
+//        }
 
         String containingClass = null;
         if (this.classDef.options.useImplicitReferences) {
@@ -218,8 +342,18 @@ public class FixMethodDefinition extends MethodDefinition {
         List<MethodItem> methodItems = this.getMethodItems();
 
 
-        System.out.println("FieldReference bugType=" + bugType);
-        System.out.println("FieldReference fixType=" + fixType);
+//        System.out.println("FieldReference bugType=" + bugType);
+//        System.out.println("FieldReference fixType=" + fixType);
+        System.out.println("methodName=" + method.getName() + " addSelfItem=" + addSelfItem);
+
+        registerFormatter.setAddSelfItem(addSelfItem);
+
+        writer.write("iget-object v0, p0, " + fixType + "->mBugObj:" + bugType);
+        writer.write(10);
+        writer.write(10);
+        writer.write(".local v0, \"_thisBugObj\":" + bugType);
+        writer.write(10);
+        writer.write(10);
 
         for (MethodItem methodItem : methodItems) {
             System.out.println("-----------------------------------methodItem=" + methodItem);
@@ -302,10 +436,9 @@ public class FixMethodDefinition extends MethodDefinition {
                         }
 
 
-
                         writer.write("invoke-direct {");
                         // TODO 寄存器
-                        getRegisterFormatter().writeTo(writer, registerB);
+                        registerFormatter.writeTo(Opcode.INVOKE_DIRECT, writer, registerB);
                         writer.write("}, ");
                         writer.write(fixType);
                         writer.write("->");
@@ -314,10 +447,9 @@ public class FixMethodDefinition extends MethodDefinition {
                         writer.write(type);
 
 
-
                         writer.write("\n\n");
                         writer.write("move-result-object ");
-                        getRegisterFormatter().writeTo(writer, registerA);
+                        registerFormatter.writeTo(Opcode.INVOKE_DIRECT, writer, registerA);
                         writer.write("\n\n");
 
                         return false;
@@ -342,12 +474,11 @@ public class FixMethodDefinition extends MethodDefinition {
                         }
 
 
-
                         writer.write("invoke-direct {");
                         // TODO 寄存器
 
-                        getRegisterFormatter().writeTo(writer, registerB);
-                        getRegisterFormatter().writeTo(writer, registerA);
+                        registerFormatter.writeTo(Opcode.INVOKE_DIRECT, writer, registerB);
+                        registerFormatter.writeTo(Opcode.INVOKE_DIRECT, writer, registerA);
 
                         writer.write("}, ");
                         writer.write(fixType);
@@ -374,12 +505,12 @@ public class FixMethodDefinition extends MethodDefinition {
             throw new MethodDefinition.InvalidSwitchPayload(targetOffset);
         }
 
-        Instruction instruction = (Instruction)this.instructions.get(targetIndex);
+        Instruction instruction = (Instruction) this.instructions.get(targetIndex);
         if (instruction.getOpcode() != type) {
             if (instruction.getOpcode() == Opcode.NOP) {
                 ++targetIndex;
                 if (targetIndex < this.instructions.size()) {
-                    instruction = (Instruction)this.instructions.get(targetIndex);
+                    instruction = (Instruction) this.instructions.get(targetIndex);
                     if (instruction.getOpcode() == type) {
                         return instruction;
                     }
@@ -400,12 +531,12 @@ public class FixMethodDefinition extends MethodDefinition {
             throw new MethodDefinition.InvalidSwitchPayload(targetOffset);
         }
 
-        Instruction instruction = (Instruction)this.instructions.get(targetIndex);
+        Instruction instruction = (Instruction) this.instructions.get(targetIndex);
         if (instruction.getOpcode() != type) {
             if (instruction.getOpcode() == Opcode.NOP) {
                 ++targetIndex;
                 if (targetIndex < this.instructions.size()) {
-                    instruction = (Instruction)this.instructions.get(targetIndex);
+                    instruction = (Instruction) this.instructions.get(targetIndex);
                     if (instruction.getOpcode() == type) {
                         return this.instructionOffsetMap.getInstructionCodeOffset(targetIndex);
                     }
@@ -422,7 +553,7 @@ public class FixMethodDefinition extends MethodDefinition {
         AccessFlags[] var2 = AccessFlags.getAccessFlagsForMethod(accessFlags);
         int var3 = var2.length;
 
-        for(int var4 = 0; var4 < var3; ++var4) {
+        for (int var4 = 0; var4 < var3; ++var4) {
             AccessFlags accessFlag = var2[var4];
             writer.write(accessFlag.toString());
             writer.write(32);
@@ -483,7 +614,7 @@ public class FixMethodDefinition extends MethodDefinition {
     }
 
     private List<MethodItem> getMethodItems() {
-        ArrayList<MethodItem> methodItems = new ArrayList();
+        ArrayList<MethodItem> methodItems = new ArrayList<>();
         if (this.classDef.options.registerInfo == 0 && !this.classDef.options.normalizeVirtualMethods && (!this.classDef.options.deodex || !this.needsAnalyzed())) {
             this.addInstructionMethodItems(methodItems);
         } else {
@@ -499,9 +630,7 @@ public class FixMethodDefinition extends MethodDefinition {
             this.setLabelSequentialNumbers();
         }
 
-        for (LabelMethodItem labelMethodItem : this.labelCache.getLabels()) {
-            methodItems.add(labelMethodItem);
-        }
+        methodItems.addAll(this.labelCache.getLabels());
 
         Collections.sort(methodItems);
         return methodItems;
@@ -516,8 +645,8 @@ public class FixMethodDefinition extends MethodDefinition {
                 return false;
             }
 
-            instruction = (Instruction)var1.next();
-        } while(!instruction.getOpcode().odexOnly());
+            instruction = (Instruction) var1.next();
+        } while (!instruction.getOpcode().odexOnly());
 
         return true;
     }
@@ -525,8 +654,8 @@ public class FixMethodDefinition extends MethodDefinition {
     private void addInstructionMethodItems(List<MethodItem> methodItems) {
         int currentCodeAddress = 0;
 
-        for(int i = 0; i < this.effectiveInstructions.size(); ++i) {
-            Instruction instruction = (Instruction)this.effectiveInstructions.get(i);
+        for (int i = 0; i < this.effectiveInstructions.size(); ++i) {
+            Instruction instruction = (Instruction) this.effectiveInstructions.get(i);
             MethodItem methodItem = InstructionMethodItemFactory.makeInstructionFormatMethodItem(this, currentCodeAddress, instruction);
             methodItems.add(methodItem);
             if (i != this.effectiveInstructions.size() - 1) {
@@ -541,7 +670,7 @@ public class FixMethodDefinition extends MethodDefinition {
 
                     public boolean writeTo(IndentingWriter writer) throws IOException {
                         writer.write("#@");
-                        writer.printUnsignedLongAsHex((long)this.codeAddress & 4294967295L);
+                        writer.printUnsignedLongAsHex((long) this.codeAddress & 4294967295L);
                         return true;
                     }
                 });
@@ -553,7 +682,7 @@ public class FixMethodDefinition extends MethodDefinition {
                     MethodReference methodReference = null;
 
                     try {
-                        methodReference = (MethodReference)((ReferenceInstruction)instruction).getReference();
+                        methodReference = (MethodReference) ((ReferenceInstruction) instruction).getReference();
                     } catch (DexBackedDexFile.InvalidItemIndex var9) {
                     }
 
@@ -582,8 +711,8 @@ public class FixMethodDefinition extends MethodDefinition {
         List<AnalyzedInstruction> instructions = methodAnalyzer.getAnalyzedInstructions();
         int currentCodeAddress = 0;
 
-        for(int i = 0; i < instructions.size(); ++i) {
-            AnalyzedInstruction instruction = (AnalyzedInstruction)instructions.get(i);
+        for (int i = 0; i < instructions.size(); ++i) {
+            AnalyzedInstruction instruction = (AnalyzedInstruction) instructions.get(i);
             MethodItem methodItem = InstructionMethodItemFactory.makeInstructionFormatMethodItem(this, currentCodeAddress, instruction.getInstruction());
             methodItems.add(methodItem);
             if (instruction.getInstruction().getOpcode().format == Format.UnresolvedOdexInstruction) {
@@ -602,7 +731,7 @@ public class FixMethodDefinition extends MethodDefinition {
 
                     public boolean writeTo(IndentingWriter writer) throws IOException {
                         writer.write("#@");
-                        writer.printUnsignedLongAsHex((long)this.codeAddress & 4294967295L);
+                        writer.printUnsignedLongAsHex((long) this.codeAddress & 4294967295L);
                         return true;
                     }
                 });
@@ -622,11 +751,11 @@ public class FixMethodDefinition extends MethodDefinition {
         List<? extends TryBlock<? extends ExceptionHandler>> tryBlocks = this.methodImpl.getTryBlocks();
         if (tryBlocks.size() != 0) {
             int lastInstructionAddress = this.instructionOffsetMap.getInstructionCodeOffset(this.instructions.size() - 1);
-            int codeSize = lastInstructionAddress + ((Instruction)this.instructions.get(this.instructions.size() - 1)).getCodeUnits();
+            int codeSize = lastInstructionAddress + ((Instruction) this.instructions.get(this.instructions.size() - 1)).getCodeUnits();
             Iterator var5 = tryBlocks.iterator();
 
-            while(var5.hasNext()) {
-                TryBlock<? extends ExceptionHandler> tryBlock = (TryBlock)var5.next();
+            while (var5.hasNext()) {
+                TryBlock<? extends ExceptionHandler> tryBlock = (TryBlock) var5.next();
                 int startAddress = tryBlock.getStartCodeAddress();
                 int endAddress = startAddress + tryBlock.getCodeUnitCount();
                 if (startAddress >= codeSize) {
@@ -641,8 +770,8 @@ public class FixMethodDefinition extends MethodDefinition {
                 int lastCoveredAddress = this.instructionOffsetMap.getInstructionCodeOffset(lastCoveredIndex);
                 Iterator var11 = tryBlock.getExceptionHandlers().iterator();
 
-                while(var11.hasNext()) {
-                    ExceptionHandler handler = (ExceptionHandler)var11.next();
+                while (var11.hasNext()) {
+                    ExceptionHandler handler = (ExceptionHandler) var11.next();
                     int handlerAddress = handler.getHandlerCodeAddress();
                     if (handlerAddress >= codeSize) {
                         throw new ExceptionWithContext("Exception handler offset %d is past the end of the code block.", new Object[]{handlerAddress});
@@ -659,8 +788,8 @@ public class FixMethodDefinition extends MethodDefinition {
     private void addDebugInfo(List<MethodItem> methodItems) {
         Iterator var2 = this.methodImpl.getDebugItems().iterator();
 
-        while(var2.hasNext()) {
-            DebugItem debugItem = (DebugItem)var2.next();
+        while (var2.hasNext()) {
+            DebugItem debugItem = (DebugItem) var2.next();
             methodItems.add(DebugMethodItem.build(this.registerFormatter, debugItem));
         }
 
@@ -672,9 +801,9 @@ public class FixMethodDefinition extends MethodDefinition {
         Collections.sort(sortedLabels);
         Iterator var3 = sortedLabels.iterator();
 
-        while(var3.hasNext()) {
-            LabelMethodItem labelMethodItem = (LabelMethodItem)var3.next();
-            Integer labelSequence = (Integer)nextLabelSequenceByType.get(labelMethodItem.getLabelPrefix());
+        while (var3.hasNext()) {
+            LabelMethodItem labelMethodItem = (LabelMethodItem) var3.next();
+            Integer labelSequence = (Integer) nextLabelSequenceByType.get(labelMethodItem.getLabelPrefix());
             if (labelSequence == null) {
                 labelSequence = 0;
             }
@@ -701,7 +830,7 @@ public class FixMethodDefinition extends MethodDefinition {
         }
 
         public LabelMethodItem internLabel(LabelMethodItem labelMethodItem) {
-            LabelMethodItem internedLabelMethodItem = (LabelMethodItem)this.labels.get(labelMethodItem);
+            LabelMethodItem internedLabelMethodItem = (LabelMethodItem) this.labels.get(labelMethodItem);
             if (internedLabelMethodItem != null) {
                 return internedLabelMethodItem;
             } else {
@@ -715,7 +844,7 @@ public class FixMethodDefinition extends MethodDefinition {
         }
     }
 
-    public RegisterFormatter getRegisterFormatter() {
+    public FixRegisterFormatter getRegisterFormatter() {
         return registerFormatter;
     }
 

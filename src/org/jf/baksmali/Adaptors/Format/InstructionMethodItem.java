@@ -6,9 +6,11 @@
 package org.jf.baksmali.Adaptors.Format;
 
 import com.zpj.hotfix.patcher.fix.FixClassDef;
+import com.zpj.hotfix.patcher.fix.FixRegisterFormatter;
 import org.jf.baksmali.Adaptors.MethodDefinition;
 import org.jf.baksmali.Adaptors.MethodDefinition.InvalidSwitchPayload;
 import org.jf.baksmali.Adaptors.MethodItem;
+import org.jf.baksmali.Adaptors.RegisterFormatter;
 import org.jf.baksmali.Renderers.LongRenderer;
 import org.jf.baksmali.baksmaliOptions;
 import org.jf.dexlib2.Opcode;
@@ -435,7 +437,12 @@ public class InstructionMethodItem<T extends Instruction> extends MethodItem {
     }
 
     protected void writeRegister(IndentingWriter writer, int registerNumber) throws IOException {
-        this.methodDef.getRegisterFormatter().writeTo(writer, registerNumber);
+        RegisterFormatter formatter = this.methodDef.getRegisterFormatter();
+        if (formatter instanceof FixRegisterFormatter) {
+            ((FixRegisterFormatter) formatter).writeTo(this.instruction.getOpcode(), writer, registerNumber);
+        } else {
+            formatter.writeTo(writer, registerNumber);
+        }
     }
 
     protected void writeFirstRegister(IndentingWriter writer) throws IOException {
