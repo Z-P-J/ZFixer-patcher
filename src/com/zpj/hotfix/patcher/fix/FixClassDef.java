@@ -83,6 +83,10 @@ public class FixClassDef extends BaseTypeReference implements ClassDef {
         return this.classDef.getDirectMethods();
     }
 
+    public Iterable<? extends DexBackedMethod> getDirectMethods(final boolean skipDuplicates) {
+        return this.classDef.getDirectMethods(skipDuplicates);
+    }
+
     @Override
     public Iterable<? extends DexBackedMethod> getVirtualMethods() {
         return this.classDef.getVirtualMethods();

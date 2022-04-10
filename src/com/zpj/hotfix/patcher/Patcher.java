@@ -39,7 +39,7 @@ public class Patcher {
 //                "patch", new File("output"))
 //                .doPatch();
 
-        new Patcher(new File("new2.apk"), new File("old.apk"),
+        new Patcher(new File("new3.apk"), new File("old.apk"),
                 "patch", new File("output"))
                 .doPatch();
     }
@@ -210,8 +210,8 @@ public class Patcher {
         System.out.println("testInjectSmali className=" + classDef.getType());
         // TODO
 
-        String smali = getSmali(classDef, options);
-        System.out.println("testInjectSmali smali=\n" + smali);
+//        String smali = getSmali(classDef, options);
+//        System.out.println("testInjectSmali smali=\n" + smali);
 
         String fixSmali = getFixSmali(classDef, options);
         System.out.println("testInjectSmali fixSmali=\n" + fixSmali);

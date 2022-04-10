@@ -439,7 +439,17 @@ public class InstructionMethodItem<T extends Instruction> extends MethodItem {
     protected void writeRegister(IndentingWriter writer, int registerNumber) throws IOException {
         RegisterFormatter formatter = this.methodDef.getRegisterFormatter();
         if (formatter instanceof FixRegisterFormatter) {
+            System.out.println("writeRegister methodName=" + this.methodDef.method.getName() + " name=" + this.instruction.getOpcode().name + " registerNumber=" + registerNumber);
             ((FixRegisterFormatter) formatter).writeTo(this.instruction.getOpcode(), writer, registerNumber);
+        } else {
+            formatter.writeTo(writer, registerNumber);
+        }
+    }
+
+    protected void writeFirstInvokeRegister(IndentingWriter writer, int registerNumber) throws IOException {
+        RegisterFormatter formatter = this.methodDef.getRegisterFormatter();
+        if (formatter instanceof FixRegisterFormatter) {
+            ((FixRegisterFormatter) formatter).writeFirstInvokeTo(writer, registerNumber);
         } else {
             formatter.writeTo(writer, registerNumber);
         }
@@ -463,22 +473,22 @@ public class InstructionMethodItem<T extends Instruction> extends MethodItem {
         writer.write(123);
         switch(regCount) {
             case 1:
-                this.writeRegister(writer, instruction.getRegisterC());
+                this.writeFirstInvokeRegister(writer, instruction.getRegisterC());
                 break;
             case 2:
-                this.writeRegister(writer, instruction.getRegisterC());
+                this.writeFirstInvokeRegister(writer, instruction.getRegisterC());
                 writer.write(", ");
                 this.writeRegister(writer, instruction.getRegisterD());
                 break;
             case 3:
-                this.writeRegister(writer, instruction.getRegisterC());
+                this.writeFirstInvokeRegister(writer, instruction.getRegisterC());
                 writer.write(", ");
                 this.writeRegister(writer, instruction.getRegisterD());
                 writer.write(", ");
                 this.writeRegister(writer, instruction.getRegisterE());
                 break;
             case 4:
-                this.writeRegister(writer, instruction.getRegisterC());
+                this.writeFirstInvokeRegister(writer, instruction.getRegisterC());
                 writer.write(", ");
                 this.writeRegister(writer, instruction.getRegisterD());
                 writer.write(", ");
@@ -487,7 +497,7 @@ public class InstructionMethodItem<T extends Instruction> extends MethodItem {
                 this.writeRegister(writer, instruction.getRegisterF());
                 break;
             case 5:
-                this.writeRegister(writer, instruction.getRegisterC());
+                this.writeFirstInvokeRegister(writer, instruction.getRegisterC());
                 writer.write(", ");
                 this.writeRegister(writer, instruction.getRegisterD());
                 writer.write(", ");
@@ -502,6 +512,7 @@ public class InstructionMethodItem<T extends Instruction> extends MethodItem {
     }
 
     protected void writeInvoke25xRegisters(IndentingWriter writer) throws IOException {
+        // invoke-lambda
         OneFixedFourParameterRegisterInstruction instruction = (OneFixedFourParameterRegisterInstruction)this.instruction;
         int parameterRegCount = instruction.getParameterRegisterCount();
         this.writeRegister(writer, instruction.getRegisterFixedC());

@@ -2,6 +2,7 @@ package com.zpj.hotfix.patcher.fix;
 
 import org.jf.baksmali.Adaptors.RegisterFormatter;
 import org.jf.baksmali.baksmaliOptions;
+import org.jf.dexlib2.Format;
 import org.jf.dexlib2.Opcode;
 import org.jf.util.IndentingWriter;
 
@@ -14,6 +15,10 @@ public class FixRegisterFormatter extends RegisterFormatter {
     public final int parameterRegisterCount;
 
     private boolean addSelfItem;
+
+    public boolean isAddSelfItem() {
+        return addSelfItem;
+    }
 
     public FixRegisterFormatter(baksmaliOptions options, int registerCount, int parameterRegisterCount) {
         super(options, registerCount, parameterRegisterCount);
@@ -57,7 +62,7 @@ public class FixRegisterFormatter extends RegisterFormatter {
         if (!this.options.noParameterRegisters && register >= this.registerCount - this.parameterRegisterCount) {
 
             register = register - (this.registerCount - this.parameterRegisterCount);
-            if (register == 0) {
+            if (addSelfItem && register == 0) {
                 writer.write('v');
             } else {
                 writer.write('p');
@@ -78,11 +83,33 @@ public class FixRegisterFormatter extends RegisterFormatter {
             register = register - (this.registerCount - this.parameterRegisterCount);
 
             // TODO 排除函数调用
-            if (addSelfItem && register == 0 && opcode != Opcode.INVOKE_DIRECT && opcode != Opcode.INVOKE_STATIC) {
+            if (addSelfItem && register == 0) { //  && opcode.format != Format.Format35c
                 writer.write('v');
             } else {
                 writer.write('p');
             }
+            writer.printSignedIntAsDec(register);
+        } else {
+            writer.write('v');
+            if (addSelfItem) {
+                register += 1;
+            }
+            writer.printSignedIntAsDec(register);
+        }
+    }
+
+    public void writeFirstInvokeTo(IndentingWriter writer, int register) throws IOException {
+        if (!this.options.noParameterRegisters && register >= this.registerCount - this.parameterRegisterCount) {
+
+            register = register - (this.registerCount - this.parameterRegisterCount);
+
+            // TODO 排除函数调用
+//            if (addSelfItem && register == 0) {
+//                writer.write('v');
+//            } else {
+//                writer.write('p');
+//            }
+            writer.write('p');
             writer.printSignedIntAsDec(register);
         } else {
             writer.write('v');

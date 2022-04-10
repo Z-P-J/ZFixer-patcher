@@ -117,7 +117,7 @@ public class FixMethodBuilder {
                 // TODO 0xi修改为i的8进制或16进制
                 String num = "0x" + i;
                 if (i > 7) {
-                    builder.append("const/16 v").append(3 + i).append(", 0x").append(i).append("\n\n");
+                    builder.append("const/16 v").append(3 + i).append(", ").append(Long.toHexString(i)).append("\n\n");
                 } else {
                     builder.append("const/4 v").append(3 + i).append(", 0x").append(i).append("\n\n");
                 }
@@ -133,7 +133,7 @@ public class FixMethodBuilder {
                 new-array v0, v2, [Ljava/lang/Class;
              */
             if (n > 7) {
-                builder.append("const/16 v2, 0x").append(n).append("\n\n");
+                builder.append("const/16 v2, ").append(Long.toHexString(n)).append("\n\n");
             } else {
                 builder.append("const/4 v2, 0x").append(n).append("\n\n");
             }

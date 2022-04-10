@@ -5,6 +5,7 @@
 
 package com.zpj.hotfix.patcher.fix;
 
+import com.zpj.hotfix.patcher.Patcher;
 import com.zpj.hotfix.patcher.annotation.MethodFixAnnotaion;
 import com.zpj.hotfix.patcher.diff.DiffClassInfo;
 import org.jf.baksmali.Adaptors.ClassDefinition;
@@ -12,7 +13,9 @@ import org.jf.baksmali.Adaptors.CommentingIndentingWriter;
 import org.jf.baksmali.Adaptors.MethodDefinition;
 import org.jf.baksmali.baksmaliOptions;
 import org.jf.dexlib2.AccessFlags;
+import org.jf.dexlib2.dexbacked.DexBackedClassDef;
 import org.jf.dexlib2.dexbacked.DexBackedMethod;
+import org.jf.dexlib2.iface.Method;
 import org.jf.dexlib2.iface.MethodImplementation;
 import org.jf.dexlib2.util.ReferenceUtil;
 import org.jf.util.IndentingWriter;
@@ -126,19 +129,60 @@ public class FixClassDefinition extends ClassDefinition {
 //        }
 //        newMethodList.clear();
 
-        return Collections.emptySet();
+
+
+        boolean wroteHeader = false;
+        Set<String> writtenMethods = new HashSet<>();
+
+        DiffClassInfo classInfo = this.classDef.getClassInfo();
+        for (DexBackedMethod method : this.classDef.getDirectMethods(false)) {
+//            System.out.println("writeDirectMethods method=" + method.getName());
+            if (classInfo.isModifiedMethod(method)) {
+                method.setMethodReplace(new MethodFixAnnotaion(method.getDefiningClass(), method.getName()));
+            } else if (!classInfo.isAddedMethod(method)) {
+                continue;
+            }
+
+            System.out.println("writeDirectMethods method=" + method.getName() + " method=" + method);
+
+            if (!wroteHeader) {
+                writer.write("\n\n");
+                writer.write("# direct methods");
+                wroteHeader = true;
+            }
+
+            writer.write(10);
+            String methodString = ReferenceUtil.getMethodDescriptor(method, true);
+            IndentingWriter methodWriter = writer;
+            if (!writtenMethods.add(methodString)) {
+                writer.write("# duplicate method ignored\n");
+                methodWriter = new CommentingIndentingWriter(writer);
+            }
+
+            MethodImplementation methodImpl = method.getImplementation();
+            if (methodImpl == null) {
+                MethodDefinition.writeEmptyMethodTo(methodWriter, method, this.options);
+            } else {
+                FixMethodDefinition methodDefinition = new FixMethodDefinition(this, method, methodImpl);
+                methodDefinition.writeTo(methodWriter);
+            }
+        }
+
+        return writtenMethods;
     }
 
     private void writeVirtualMethods(IndentingWriter writer, Set<String> directMethods) throws IOException {
         boolean wroteHeader = false;
-        Set<String> writtenMethods = new HashSet();
+        Set<String> writtenMethods = new HashSet<>();
 
+        DiffClassInfo classInfo = this.classDef.getClassInfo();
         for (DexBackedMethod method : this.classDef.getVirtualMethods()) {
             System.out.println("writeVirtualMethods method=" + method.getName() + " virtualMethod=" + method);
 
-            DiffClassInfo classInfo = this.classDef.getClassInfo();
             if (classInfo.isModifiedMethod(method)) {
                 method.setMethodReplace(new MethodFixAnnotaion(method.getDefiningClass(), method.getName()));
+            } else if (!classInfo.isAddedMethod(method)) {
+                continue;
             }
 
             if (!wroteHeader) {

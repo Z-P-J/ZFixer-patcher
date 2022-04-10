@@ -6,10 +6,7 @@ import org.jf.dexlib2.dexbacked.DexBackedMethod;
 import org.jf.dexlib2.dexbacked.DexBackedMethodImplementation;
 import org.jf.dexlib2.iface.value.EncodedValue;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 public class DiffClassInfo {
 
@@ -35,6 +32,36 @@ public class DiffClassInfo {
 
     public boolean isModifiedMethod(DexBackedMethod method) {
         return !modifiedMethods.isEmpty() && modifiedMethods.contains(method);
+    }
+
+    public boolean isAddedMethod(DexBackedMethod method) {
+        return addedMethods.contains(method);
+    }
+
+    public boolean isModifiedMethod(String methodName, List<String> parameterTypes) {
+        for (DexBackedMethod method : modifiedMethods) {
+            if (method.getName().equals(methodName)) {
+                if (method.getParameterTypes().equals(parameterTypes)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public boolean isAddedMethod(String methodName, List<String> parameterTypes) {
+        for (DexBackedMethod method : addedMethods) {
+            if (method.getName().equals(methodName)) {
+                if (method.getParameterTypes().equals(parameterTypes)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public boolean isFixMethod(String methodName, List<String> parameterTypes) {
+        return isModifiedMethod(methodName, parameterTypes) || isAddedMethod(methodName, parameterTypes);
     }
 
     public DexBackedClassDef getOldClazz() {

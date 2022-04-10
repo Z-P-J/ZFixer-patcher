@@ -249,7 +249,7 @@ public class ClassDefinition {
 
         for (Object directMethod : directMethods) {
             Method method = (Method) directMethod;
-            System.out.println("writeDirectMethods method=" + method.getName());
+//            System.out.println("writeDirectMethods method=" + method.getName());
             if (this.classDef instanceof DexBackedClassDef
                     && Patcher.isModifiedMethod((DexBackedClassDef) this.classDef, method)) {
                 ((DexBackedMethod) method).setMethodReplace(new MethodFixAnnotaion(method.getDefiningClass(), method.getName()));
