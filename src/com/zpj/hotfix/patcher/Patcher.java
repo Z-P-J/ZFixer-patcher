@@ -39,7 +39,7 @@ public class Patcher {
 //                "patch", new File("output"))
 //                .doPatch();
 
-        new Patcher(new File("new3.apk"), new File("old.apk"),
+        new Patcher(new File("new4.apk"), new File("old.apk"),
                 "patch", new File("output"))
                 .doPatch();
     }
@@ -58,6 +58,26 @@ public class Patcher {
 
             if (classInfo.isModified() && classDef.getType().equals(clazz)) {
                 return classDef;
+            }
+        }
+        return null;
+    }
+
+    public static DexBackedClassDef getAddedClasses(String clazz) {
+        for (DexBackedClassDef classDef : DIFF_CLASS_INFO_MAP.keySet()) {
+            DiffClassInfo classInfo = DIFF_CLASS_INFO_MAP.get(classDef);
+            if (!classInfo.isModified() && classDef.getType().equals(clazz)) {
+                return classDef;
+            }
+        }
+        return null;
+    }
+
+    public static DiffClassInfo getClassInfo(String clazz) {
+        for (DexBackedClassDef classDef : DIFF_CLASS_INFO_MAP.keySet()) {
+            DiffClassInfo classInfo = DIFF_CLASS_INFO_MAP.get(classDef);
+            if (classDef.getType().equals(clazz)) {
+                return classInfo;
             }
         }
         return null;

@@ -5,15 +5,15 @@
 
 package com.zpj.hotfix.patcher.fix;
 
-import com.zpj.hotfix.patcher.Patcher;
 import com.zpj.hotfix.patcher.annotation.MethodFixAnnotaion;
 import com.zpj.hotfix.patcher.diff.DiffClassInfo;
+import com.zpj.hotfix.patcher.utils.MethodUtils;
 import org.jf.baksmali.Adaptors.ClassDefinition;
 import org.jf.baksmali.Adaptors.CommentingIndentingWriter;
 import org.jf.baksmali.Adaptors.MethodDefinition;
 import org.jf.baksmali.baksmaliOptions;
 import org.jf.dexlib2.AccessFlags;
-import org.jf.dexlib2.dexbacked.DexBackedClassDef;
+import org.jf.dexlib2.Opcode;
 import org.jf.dexlib2.dexbacked.DexBackedMethod;
 import org.jf.dexlib2.iface.Method;
 import org.jf.dexlib2.iface.MethodImplementation;
@@ -152,7 +152,7 @@ public class FixClassDefinition extends ClassDefinition {
             }
 
             writer.write(10);
-            String methodString = ReferenceUtil.getMethodDescriptor(method, true);
+            String methodString = MethodUtils.getMethodDescriptor(method);
             IndentingWriter methodWriter = writer;
             if (!writtenMethods.add(methodString)) {
                 writer.write("# duplicate method ignored\n");
@@ -163,7 +163,7 @@ public class FixClassDefinition extends ClassDefinition {
             if (methodImpl == null) {
                 MethodDefinition.writeEmptyMethodTo(methodWriter, method, this.options);
             } else {
-                FixMethodDefinition methodDefinition = new FixMethodDefinition(this, method, methodImpl);
+                MethodDefinition methodDefinition = createMethodDefinition(this, method, methodImpl);
                 methodDefinition.writeTo(methodWriter);
             }
         }
@@ -192,7 +192,7 @@ public class FixClassDefinition extends ClassDefinition {
             }
 
             writer.write(10);
-            String methodString = ReferenceUtil.getMethodDescriptor(this.classDef, method, true);
+            String methodString = MethodUtils.getMethodDescriptor(method);
             System.out.println("writeVirtualMethods methodString=" + methodString);
             IndentingWriter methodWriter = writer;
             if (!writtenMethods.add(methodString)) {
@@ -208,7 +208,7 @@ public class FixClassDefinition extends ClassDefinition {
             if (methodImpl == null) {
                 MethodDefinition.writeEmptyMethodTo(methodWriter, method, this.options);
             } else {
-                FixMethodDefinition methodDefinition = new FixMethodDefinition(this, method, methodImpl);
+                MethodDefinition methodDefinition = createMethodDefinition(this, method, methodImpl);
                 methodDefinition.writeTo(methodWriter);
             }
         }
@@ -220,6 +220,11 @@ public class FixClassDefinition extends ClassDefinition {
             writer.write(newMethod);
 
         }
+    }
+
+    @Override
+    protected MethodDefinition createMethodDefinition(ClassDefinition classDef, Method method, MethodImplementation methodImpl) {
+        return new FixMethodDefinition(this, (DexBackedMethod) method, methodImpl);
     }
 
     public void putNewMethod(String key, String method) {

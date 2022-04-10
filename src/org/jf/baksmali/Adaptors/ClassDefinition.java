@@ -7,8 +7,12 @@ package org.jf.baksmali.Adaptors;
 
 import com.zpj.hotfix.patcher.Patcher;
 import com.zpj.hotfix.patcher.annotation.MethodFixAnnotaion;
+import com.zpj.hotfix.patcher.diff.DiffClassInfo;
+import com.zpj.hotfix.patcher.fix.FixClassDef;
+import com.zpj.hotfix.patcher.utils.MethodUtils;
 import org.jf.baksmali.baksmaliOptions;
 import org.jf.dexlib2.AccessFlags;
+import org.jf.dexlib2.Opcode;
 import org.jf.dexlib2.dexbacked.DexBackedClassDef;
 import org.jf.dexlib2.dexbacked.DexBackedDexFile.InvalidItemIndex;
 import org.jf.dexlib2.dexbacked.DexBackedMethod;
@@ -16,6 +20,7 @@ import org.jf.dexlib2.iface.*;
 import org.jf.dexlib2.iface.instruction.Instruction;
 import org.jf.dexlib2.iface.instruction.formats.Instruction21c;
 import org.jf.dexlib2.iface.reference.FieldReference;
+import org.jf.dexlib2.iface.reference.MethodReference;
 import org.jf.dexlib2.util.ReferenceUtil;
 import org.jf.util.IndentingWriter;
 import org.jf.util.StringUtils;
@@ -261,7 +266,7 @@ public class ClassDefinition {
             }
 
             writer.write(10);
-            String methodString = ReferenceUtil.getMethodDescriptor(method, true);
+            String methodString = MethodUtils.getMethodDescriptor(method);
             IndentingWriter methodWriter = writer;
             if (!writtenMethods.add(methodString)) {
                 writer.write("# duplicate method ignored\n");
@@ -272,12 +277,16 @@ public class ClassDefinition {
             if (methodImpl == null) {
                 MethodDefinition.writeEmptyMethodTo(methodWriter, method, this.options);
             } else {
-                MethodDefinition methodDefinition = new MethodDefinition(this, method, methodImpl);
+                MethodDefinition methodDefinition = createMethodDefinition(this, method, methodImpl);
                 methodDefinition.writeTo(methodWriter);
             }
         }
 
         return writtenMethods;
+    }
+
+    protected MethodDefinition createMethodDefinition(ClassDefinition classDef, Method method, MethodImplementation methodImpl) {
+        return new MethodDefinition(this, method, methodImpl);
     }
 
     private void writeVirtualMethods(IndentingWriter writer, Set<String> directMethods) throws IOException {
@@ -303,7 +312,7 @@ public class ClassDefinition {
             }
 
             writer.write(10);
-            String methodString = ReferenceUtil.getMethodDescriptor(method, true);
+            String methodString = MethodUtils.getMethodDescriptor(method);
             IndentingWriter methodWriter = writer;
             if (!writtenMethods.add(methodString)) {
                 writer.write("# duplicate method ignored\n");
@@ -318,10 +327,11 @@ public class ClassDefinition {
             if (methodImpl == null) {
                 MethodDefinition.writeEmptyMethodTo(methodWriter, method, this.options);
             } else {
-                MethodDefinition methodDefinition = new MethodDefinition(this, method, methodImpl);
+                MethodDefinition methodDefinition = createMethodDefinition(this, method, methodImpl);
                 methodDefinition.writeTo(methodWriter);
             }
         }
 
     }
+
 }

@@ -52,6 +52,36 @@ public class FixMethodBuilder {
         }
     }
 
+    public static String buildAccessAddedMethod() {
+        // TODO
+        /**
+         * 模板
+         * .method public getBugClass()Lcom/zpj/hotfix/demo/BugClass;
+         *     .registers 3
+         *     .annotation system Ldalvik/annotation/Throws;
+         *         value = {
+         *             Ljava/lang/Exception;
+         *         }
+         *     .end annotation
+         *
+         *     .prologue
+         *     .line 37
+         *     iget-object v0, p0, Lcom/zpj/hotfix/demo/NewClass;->bugClass:Lcom/zpj/hotfix/demo/BugClass;
+         *
+         *     const-class v1, Lcom/zpj/hotfix/demo/BugClass;
+         *
+         *     invoke-static {v0, v1}, Lcom/zpj/hotfix/FixObjectManager;->get(Ljava/lang/Object;Ljava/lang/Class;)Ljava/lang/Object;
+         *
+         *     move-result-object v0
+         *
+         *     check-cast v0, Lcom/zpj/hotfix/demo/BugClass;
+         *
+         *     return-object v0
+         * .end method
+         */
+        return null;
+    }
+
     public static String buildAccessMethod(String methodName, List<String> parameterTypes, String returnType, String bugClazz, String fixClass, boolean isStatic) {
         StringBuilder builder = new StringBuilder();
 

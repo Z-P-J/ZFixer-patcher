@@ -161,7 +161,7 @@ public class InstructionMethodItem<T extends Instruction> extends MethodItem {
                 if (classDef instanceof FixClassDef) {
                     referenceString = ReferenceUtil.getReferenceString((FixClassDef) classDef, reference, classContext);
                 } else {
-                    referenceString = ReferenceUtil.getReferenceString(reference, classContext);
+                    referenceString = ReferenceUtil.getReferenceString(opcode, reference, classContext);
                 }
                 System.out.println("referenceString=" + referenceString);
 //                if (this.methodDef.method.getName().equals("<clinit>")) {

@@ -7,6 +7,7 @@ package org.jf.dexlib2.dexbacked;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
+import org.jf.dexlib2.AccessFlags;
 import org.jf.dexlib2.base.BaseAnnotation;
 import org.jf.dexlib2.base.reference.BaseMethodReference;
 import org.jf.dexlib2.dexbacked.util.AnnotationsDirectory;
@@ -62,6 +63,10 @@ public class DexBackedMethod extends BaseMethodReference implements Method {
 
     public int getMethodIndex() {
         return this.methodIndex;
+    }
+
+    public boolean isStatic() {
+        return AccessFlags.STATIC.isSet(getAccessFlags());
     }
 
     

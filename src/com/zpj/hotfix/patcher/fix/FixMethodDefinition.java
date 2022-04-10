@@ -5,6 +5,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.UnmodifiableIterator;
 import com.zpj.hotfix.patcher.Patcher;
 import com.zpj.hotfix.patcher.utils.FixMethodBuilder;
+import com.zpj.hotfix.patcher.utils.MethodUtils;
 import org.jf.baksmali.Adaptors.*;
 import org.jf.baksmali.Adaptors.Debug.DebugMethodItem;
 import org.jf.baksmali.Adaptors.Format.InstructionMethodItem;
@@ -133,7 +134,7 @@ public class FixMethodDefinition extends MethodDefinition {
         } catch (Exception var15) {
             String methodString;
             try {
-                methodString = ReferenceUtil.getMethodDescriptor(this.classDef.classDef, method, false);
+                methodString = MethodUtils.getMethodDescriptor(method);
             } catch (Exception var12) {
                 throw ExceptionWithContext.withContext(var15, "Error while processing method", new Object[0]);
             }
@@ -493,19 +494,18 @@ public class FixMethodDefinition extends MethodDefinition {
         }
     }
 
-    private static void writeAccessFlags(IndentingWriter writer, int accessFlags) throws IOException {
+    protected static void writeAccessFlags(IndentingWriter writer, int accessFlags) throws IOException {
         AccessFlags[] var2 = AccessFlags.getAccessFlagsForMethod(accessFlags);
         int var3 = var2.length;
 
-        for (int var4 = 0; var4 < var3; ++var4) {
-            AccessFlags accessFlag = var2[var4];
+        for (AccessFlags accessFlag : var2) {
             writer.write(accessFlag.toString());
             writer.write(32);
         }
 
     }
 
-    private static void writeParameters(IndentingWriter writer, Method method, List<? extends MethodParameter> parameters, baksmaliOptions options) throws IOException {
+    protected static void writeParameters(IndentingWriter writer, Method method, List<? extends MethodParameter> parameters, baksmaliOptions options) throws IOException {
         boolean isStatic = AccessFlags.STATIC.isSet(method.getAccessFlags());
         int registerNumber = isStatic ? 0 : 1;
 
@@ -557,7 +557,7 @@ public class FixMethodDefinition extends MethodDefinition {
         return this.sparseSwitchMap.get(sparseSwitchPayloadCodeOffset, -1);
     }
 
-    private List<MethodItem> getMethodItems() {
+    protected List<MethodItem> getMethodItems() {
         ArrayList<MethodItem> methodItems = new ArrayList<>();
         if (this.classDef.options.registerInfo == 0 && !this.classDef.options.normalizeVirtualMethods && (!this.classDef.options.deodex || !this.needsAnalyzed())) {
             this.addInstructionMethodItems(methodItems);

@@ -15,6 +15,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+
+import com.zpj.hotfix.patcher.utils.MethodUtils;
 import org.jf.baksmali.baksmaliOptions;
 import org.jf.baksmali.Adaptors.Debug.DebugMethodItem;
 import org.jf.baksmali.Adaptors.Format.InstructionMethodItemFactory;
@@ -73,10 +75,10 @@ public class MethodDefinition {
             this.packedSwitchMap = new SparseIntArray(0);
             this.sparseSwitchMap = new SparseIntArray(0);
             this.instructionOffsetMap = new InstructionOffsetMap(this.instructions);
-            int endOffset = this.instructionOffsetMap.getInstructionCodeOffset(this.instructions.size() - 1) + ((Instruction)this.instructions.get(this.instructions.size() - 1)).getCodeUnits();
+            int endOffset = this.instructionOffsetMap.getInstructionCodeOffset(this.instructions.size() - 1) + this.instructions.get(this.instructions.size() - 1).getCodeUnits();
 
             for(int i = 0; i < this.instructions.size(); ++i) {
-                Instruction instruction = (Instruction)this.instructions.get(i);
+                Instruction instruction = this.instructions.get(i);
                 Opcode opcode = instruction.getOpcode();
                 boolean valid;
                 int codeOffset;
@@ -132,7 +134,7 @@ public class MethodDefinition {
         } catch (Exception var15) {
             String methodString;
             try {
-                methodString = ReferenceUtil.getMethodDescriptor(method);
+                methodString = MethodUtils.getMethodDescriptor(method);
             } catch (Exception var12) {
                 throw ExceptionWithContext.withContext(var15, "Error while processing method");
             }
@@ -238,12 +240,12 @@ public class MethodDefinition {
             throw new InvalidSwitchPayload(targetOffset);
         }
 
-        Instruction instruction = (Instruction)this.instructions.get(targetIndex);
+        Instruction instruction = this.instructions.get(targetIndex);
         if (instruction.getOpcode() != type) {
             if (instruction.getOpcode() == Opcode.NOP) {
                 ++targetIndex;
                 if (targetIndex < this.instructions.size()) {
-                    instruction = (Instruction)this.instructions.get(targetIndex);
+                    instruction = this.instructions.get(targetIndex);
                     if (instruction.getOpcode() == type) {
                         return instruction;
                     }
@@ -264,12 +266,12 @@ public class MethodDefinition {
             throw new InvalidSwitchPayload(targetOffset);
         }
 
-        Instruction instruction = (Instruction)this.instructions.get(targetIndex);
+        Instruction instruction = this.instructions.get(targetIndex);
         if (instruction.getOpcode() != type) {
             if (instruction.getOpcode() == Opcode.NOP) {
                 ++targetIndex;
                 if (targetIndex < this.instructions.size()) {
-                    instruction = (Instruction)this.instructions.get(targetIndex);
+                    instruction = this.instructions.get(targetIndex);
                     if (instruction.getOpcode() == type) {
                         return this.instructionOffsetMap.getInstructionCodeOffset(targetIndex);
                     }
@@ -282,7 +284,7 @@ public class MethodDefinition {
         }
     }
 
-    private static void writeAccessFlags(IndentingWriter writer, int accessFlags) throws IOException {
+    protected static void writeAccessFlags(IndentingWriter writer, int accessFlags) throws IOException {
         AccessFlags[] var2 = AccessFlags.getAccessFlagsForMethod(accessFlags);
         int var3 = var2.length;
 
@@ -294,7 +296,7 @@ public class MethodDefinition {
 
     }
 
-    private static void writeParameters(IndentingWriter writer, Method method, List<? extends MethodParameter> parameters, baksmaliOptions options) throws IOException {
+    protected static void writeParameters(IndentingWriter writer, Method method, List<? extends MethodParameter> parameters, baksmaliOptions options) throws IOException {
         boolean isStatic = AccessFlags.STATIC.isSet(method.getAccessFlags());
         int registerNumber = isStatic ? 0 : 1;
         Iterator var6 = parameters.iterator();
@@ -348,7 +350,7 @@ public class MethodDefinition {
         return this.sparseSwitchMap.get(sparseSwitchPayloadCodeOffset, -1);
     }
 
-    private List<MethodItem> getMethodItems() {
+    protected List<MethodItem> getMethodItems() {
         ArrayList<MethodItem> methodItems = new ArrayList();
         if (this.classDef.options.registerInfo == 0 && !this.classDef.options.normalizeVirtualMethods && (!this.classDef.options.deodex || !this.needsAnalyzed())) {
             this.addInstructionMethodItems(methodItems);
@@ -365,19 +367,14 @@ public class MethodDefinition {
             this.setLabelSequentialNumbers();
         }
 
-        Iterator var2 = this.labelCache.getLabels().iterator();
-
-        while(var2.hasNext()) {
-            LabelMethodItem labelMethodItem = (LabelMethodItem)var2.next();
-            methodItems.add(labelMethodItem);
-        }
+        methodItems.addAll(this.labelCache.getLabels());
 
         Collections.sort(methodItems);
         return methodItems;
     }
 
     private boolean needsAnalyzed() {
-        Iterator var1 = this.methodImpl.getInstructions().iterator();
+        Iterator<? extends Instruction> var1 = this.methodImpl.getInstructions().iterator();
 
         Instruction instruction;
         do {
@@ -385,7 +382,7 @@ public class MethodDefinition {
                 return false;
             }
 
-            instruction = (Instruction)var1.next();
+            instruction = var1.next();
         } while(!instruction.getOpcode().odexOnly());
 
         return true;
@@ -395,7 +392,7 @@ public class MethodDefinition {
         int currentCodeAddress = 0;
 
         for(int i = 0; i < this.effectiveInstructions.size(); ++i) {
-            Instruction instruction = (Instruction)this.effectiveInstructions.get(i);
+            Instruction instruction = this.effectiveInstructions.get(i);
             MethodItem methodItem = InstructionMethodItemFactory.makeInstructionFormatMethodItem(this, currentCodeAddress, instruction);
             methodItems.add(methodItem);
             if (i != this.effectiveInstructions.size() - 1) {
@@ -452,7 +449,7 @@ public class MethodDefinition {
         int currentCodeAddress = 0;
 
         for(int i = 0; i < instructions.size(); ++i) {
-            AnalyzedInstruction instruction = (AnalyzedInstruction)instructions.get(i);
+            AnalyzedInstruction instruction = instructions.get(i);
             MethodItem methodItem = InstructionMethodItemFactory.makeInstructionFormatMethodItem(this, currentCodeAddress, instruction.getInstruction());
             methodItems.add(methodItem);
             if (instruction.getInstruction().getOpcode().format == Format.UnresolvedOdexInstruction) {
@@ -491,7 +488,7 @@ public class MethodDefinition {
         List<? extends TryBlock<? extends ExceptionHandler>> tryBlocks = this.methodImpl.getTryBlocks();
         if (tryBlocks.size() != 0) {
             int lastInstructionAddress = this.instructionOffsetMap.getInstructionCodeOffset(this.instructions.size() - 1);
-            int codeSize = lastInstructionAddress + ((Instruction)this.instructions.get(this.instructions.size() - 1)).getCodeUnits();
+            int codeSize = lastInstructionAddress + this.instructions.get(this.instructions.size() - 1).getCodeUnits();
             Iterator var5 = tryBlocks.iterator();
 
             while(var5.hasNext()) {
@@ -514,7 +511,7 @@ public class MethodDefinition {
                     ExceptionHandler handler = (ExceptionHandler)var11.next();
                     int handlerAddress = handler.getHandlerCodeAddress();
                     if (handlerAddress >= codeSize) {
-                        throw new ExceptionWithContext("Exception handler offset %d is past the end of the code block.", new Object[]{handlerAddress});
+                        throw new ExceptionWithContext("Exception handler offset %d is past the end of the code block.", handlerAddress);
                     }
 
                     CatchMethodItem catchMethodItem = new CatchMethodItem(this.classDef.options, this.labelCache, lastCoveredAddress, handler.getExceptionType(), startAddress, endAddress, handlerAddress);
@@ -543,7 +540,7 @@ public class MethodDefinition {
 
         while(var3.hasNext()) {
             LabelMethodItem labelMethodItem = (LabelMethodItem)var3.next();
-            Integer labelSequence = (Integer)nextLabelSequenceByType.get(labelMethodItem.getLabelPrefix());
+            Integer labelSequence = nextLabelSequenceByType.get(labelMethodItem.getLabelPrefix());
             if (labelSequence == null) {
                 labelSequence = 0;
             }
@@ -558,7 +555,7 @@ public class MethodDefinition {
         private final int payloadOffset;
 
         public InvalidSwitchPayload(int payloadOffset) {
-            super("No switch payload at offset: %d", new Object[]{payloadOffset});
+            super("No switch payload at offset: %d", payloadOffset);
             this.payloadOffset = payloadOffset;
         }
     }
@@ -570,7 +567,7 @@ public class MethodDefinition {
         }
 
         public LabelMethodItem internLabel(LabelMethodItem labelMethodItem) {
-            LabelMethodItem internedLabelMethodItem = (LabelMethodItem)this.labels.get(labelMethodItem);
+            LabelMethodItem internedLabelMethodItem = this.labels.get(labelMethodItem);
             if (internedLabelMethodItem != null) {
                 return internedLabelMethodItem;
             } else {
@@ -587,4 +584,5 @@ public class MethodDefinition {
     public RegisterFormatter getRegisterFormatter() {
         return registerFormatter;
     }
+
 }

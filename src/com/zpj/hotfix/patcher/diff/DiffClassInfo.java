@@ -60,6 +60,17 @@ public class DiffClassInfo {
         return false;
     }
 
+    public DexBackedMethod getAddedMethod(String methodName, List<String> parameterTypes) {
+        for (DexBackedMethod method : addedMethods) {
+            if (method.getName().equals(methodName)) {
+                if (method.getParameterTypes().equals(parameterTypes)) {
+                    return method;
+                }
+            }
+        }
+        return null;
+    }
+
     public boolean isFixMethod(String methodName, List<String> parameterTypes) {
         return isModifiedMethod(methodName, parameterTypes) || isAddedMethod(methodName, parameterTypes);
     }

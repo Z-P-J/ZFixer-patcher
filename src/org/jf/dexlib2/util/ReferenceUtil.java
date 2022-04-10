@@ -6,9 +6,13 @@
 package org.jf.dexlib2.util;
 
 import com.zpj.hotfix.patcher.Patcher;
+import com.zpj.hotfix.patcher.diff.DiffClassInfo;
 import com.zpj.hotfix.patcher.fix.FixClassDef;
+import org.jf.dexlib2.Opcode;
 import org.jf.dexlib2.dexbacked.DexBackedClassDef;
 import org.jf.dexlib2.dexbacked.DexBackedField;
+import org.jf.dexlib2.dexbacked.DexBackedMethod;
+import org.jf.dexlib2.dexbacked.reference.DexBackedMethodReference;
 import org.jf.dexlib2.iface.reference.*;
 import org.jf.util.StringUtils;
 
@@ -16,17 +20,29 @@ import java.io.IOException;
 import java.io.Writer;
 
 public final class ReferenceUtil {
-    public static String getMethodDescriptor(MethodReference methodReference) {
-        return getMethodDescriptor(methodReference, false);
-    }
 
-    public static String getMethodDescriptor(MethodReference methodReference, boolean useImplicitReference) {
+    public static String getMethodDescriptor(Opcode opcode, MethodReference methodReference, boolean useImplicitReference) {
         StringBuilder sb = new StringBuilder();
         if (!useImplicitReference) {
             String clazz = methodReference.getDefiningClass();
 //            if (Patcher.getModifiedClasses(clazz) != null) {
 //                clazz = TypeGenUtil.newType(clazz);
 //            }
+
+            DiffClassInfo classInfo = Patcher.getClassInfo(clazz);
+            boolean isStatic = opcode == Opcode.INVOKE_STATIC || opcode == Opcode.INVOKE_STATIC_RANGE;
+            if (classInfo != null) {
+//                DexBackedMethod method = classInfo.getAddedMethod(methodReference.getName(),
+//                        ((DexBackedMethod) methodReference).getParameterTypes());
+//                if (method != null && method.isStatic()) {
+//                    clazz = clazz.substring(0, clazz.length() - 1) + "_Fix;";
+//                }
+                if (classInfo.isAddedMethod(methodReference.getName(), ((DexBackedMethodReference) methodReference).getParameterTypes())) {
+                    if (isStatic) {
+                        clazz = clazz.substring(0, clazz.length() - 1) + "_Fix;";
+                    }
+                }
+            }
 
             sb.append(clazz);
             sb.append("->");
@@ -51,6 +67,16 @@ public final class ReferenceUtil {
 
             if (classDef.getType().equals(clazz)) {
                 clazz = classDef.getFixType();
+            } else {
+                DiffClassInfo classInfo = Patcher.getClassInfo(clazz);
+                if (classInfo != null) {
+                    DexBackedMethod method = classInfo.getAddedMethod(methodReference.getName(),
+                            ((DexBackedMethodReference) methodReference).getParameterTypes());
+                    if (method != null && method.isStatic()) {
+                        clazz = clazz.substring(0, clazz.length() - 1) + "_Fix;";
+                    }
+                }
+
             }
 
             sb.append(clazz);
@@ -153,11 +179,11 @@ public final class ReferenceUtil {
         writer.write(fieldReference.getType());
     }
 
-    public static String getReferenceString(Reference reference) {
-        return getReferenceString(reference, (String)null);
+    public static String getReferenceString(Opcode opcode, Reference reference) {
+        return getReferenceString(opcode, reference, (String)null);
     }
 
-    public static String getReferenceString(Reference reference, String containingClass) {
+    public static String getReferenceString(Opcode opcode, Reference reference, String containingClass) {
         System.out.println("getReferenceString reference=" + reference + " containingClass=" + containingClass);
         if (reference instanceof StringReference) {
             return String.format("\"%s\"", StringUtils.escapeString(((StringReference)reference).getString()));
@@ -172,7 +198,7 @@ public final class ReferenceUtil {
             } else if (reference instanceof MethodReference) {
                 MethodReference methodReference = (MethodReference)reference;
                 useImplicitReference = methodReference.getDefiningClass().equals(containingClass);
-                return getMethodDescriptor((MethodReference)reference, useImplicitReference);
+                return getMethodDescriptor(opcode, (MethodReference)reference, useImplicitReference);
             } else {
                 return null;
             }
