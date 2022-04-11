@@ -311,9 +311,11 @@ public class FixMethodDefinition extends MethodDefinition {
                     if (bugType.equals(definingClass)) {
                         // TODO add new method in fix class
 
+                        boolean isStatic = (opcode == Opcode.INVOKE_STATIC_RANGE);
+
                         int startRegister = ((DexBackedInstruction3rc) instruction).getStartRegister();
-                        FixRegisterFormatter.RegisterInfo info = registerFormatter.getRegisterInfo(startRegister);
-                        if (registerFormatter.isAddSelfItem() && info.getRegisterType() == 'v') {
+                        RegisterFormatter.RegisterInfo info = registerFormatter.getRegisterInfo(startRegister);
+                        if (!isStatic && registerFormatter.isAddSelfItem() && info.getRegisterType() == 'v') {
 //                            writer.write("move-object v3, p0");
                             writer.write("move-object ");
                             registerFormatter.writeTo(opcode, writer, startRegister);
@@ -324,8 +326,6 @@ public class FixMethodDefinition extends MethodDefinition {
                         String name = ((DexBackedMethodReference) reference).getName();
                         String returnType = ((DexBackedMethodReference) reference).getReturnType();
                         List<String> parameterTypes = ((DexBackedMethodReference) reference).getParameterTypes();
-
-                        boolean isStatic = (opcode == Opcode.INVOKE_STATIC_RANGE);
 
 
                         System.out.println("DexBackedMethodReference getDefiningClass=" + definingClass);
@@ -806,20 +806,6 @@ public class FixMethodDefinition extends MethodDefinition {
             if (methodItem instanceof InstructionMethodItem) {
                 Instruction instruction = ((InstructionMethodItem<?>) methodItem).getInstruction();
                 Opcode opcode = instruction.getOpcode();
-//                if (opcode == Opcode.INVOKE_DIRECT || opcode == Opcode.INVOKE_STATIC) {
-//                    continue;
-//                }
-
-//                if (instruction instanceof DexBackedInstruction35c) {
-//                    Reference reference = ((DexBackedInstruction35c) instruction).getReference();
-//                    if (reference instanceof DexBackedMethodReference) {
-//                        String definingClass = ((DexBackedMethodReference) reference).getDefiningClass();
-//                        if (bugType.equals(definingClass)) {
-//                            // TODO 如果this作为了参数传入
-//                            continue;
-//                        }
-//                    }
-//                }
 
                 if (instruction instanceof DexBackedInstruction22c) {
                     Reference reference = ((DexBackedInstruction22c) instruction).getReference();
@@ -838,15 +824,6 @@ public class FixMethodDefinition extends MethodDefinition {
                     int a = ((ThreeRegisterInstruction) instruction).getRegisterA();
                     int b = ((ThreeRegisterInstruction) instruction).getRegisterB();
                     int c = ((ThreeRegisterInstruction) instruction).getRegisterC();
-
-
-//                    if (!this.classDef.options.noParameterRegisters && register >= this.registerCount - this.parameterRegisterCount) {
-//                        writer.write(112);
-//                        writer.printSignedIntAsDec(register - (this.registerCount - this.parameterRegisterCount));
-//                    } else {
-//                        writer.write(118);
-//                        writer.printSignedIntAsDec(register);
-//                    }
 
                     addSelfItem = registerFormatter.shouldAddSelfItem(a, b, c);
 
@@ -910,47 +887,6 @@ public class FixMethodDefinition extends MethodDefinition {
                                 break;
                         }
                     }
-
-//                    if (instruction instanceof DexBackedInstruction35c) {
-//                        Reference reference = ((DexBackedInstruction35c) instruction).getReference();
-//                        if (reference instanceof DexBackedMethodReference) {
-//
-//                            FixRegisterFormatter.RegisterInfo info = registerFormatter.getRegisterInfo(fiveInstruction.getRegisterC());
-//                            if (info.getRegisterType() == 'p' && info.getRegister() == 0) {
-//
-//                            }
-//
-//                            String definingClass = ((DexBackedMethodReference) reference).getDefiningClass();
-//                            if (bugType.equals(definingClass)) {
-//                                // TODO 如果this作为了参数传入
-//                                continue;
-//                            }
-//                        }
-//                    }
-
-//                    switch (regCount) {
-//                        case 1:
-//                            addSelfItem = registerFormatter.shouldAddSelfItem(fiveInstruction.getRegisterC());
-//                            break;
-//                        case 2:
-//                            addSelfItem = registerFormatter.shouldAddSelfItem(fiveInstruction.getRegisterC(),
-//                                    fiveInstruction.getRegisterD());
-//                            break;
-//                        case 3:
-//                            addSelfItem = registerFormatter.shouldAddSelfItem(fiveInstruction.getRegisterC(),
-//                                    fiveInstruction.getRegisterD(), fiveInstruction.getRegisterE());
-//                            break;
-//                        case 4:
-//                            addSelfItem = registerFormatter.shouldAddSelfItem(fiveInstruction.getRegisterC(),
-//                                    fiveInstruction.getRegisterD(), fiveInstruction.getRegisterE(),
-//                                    fiveInstruction.getRegisterF());
-//                            break;
-//                        case 5:
-//                            addSelfItem = registerFormatter.shouldAddSelfItem(fiveInstruction.getRegisterC(),
-//                                    fiveInstruction.getRegisterD(), fiveInstruction.getRegisterE(),
-//                                    fiveInstruction.getRegisterF(), fiveInstruction.getRegisterG());
-//                            break;
-//                    }
                 } else if (instruction instanceof OneFixedFourParameterRegisterInstruction) {
                     OneFixedFourParameterRegisterInstruction fiveInstruction = (OneFixedFourParameterRegisterInstruction) instruction;
                     int regCount = fiveInstruction.getRegisterCount();

@@ -2,16 +2,22 @@ package com.zpj.hotfix.patcher.fix;
 
 import com.zpj.hotfix.patcher.Patcher;
 import com.zpj.hotfix.patcher.diff.DiffClassInfo;
+import com.zpj.hotfix.patcher.utils.FixMethodBuilder;
 import org.jf.baksmali.Adaptors.*;
 import org.jf.baksmali.Adaptors.Format.InstructionMethodItem;
 import org.jf.dexlib2.AccessFlags;
 import org.jf.dexlib2.Format;
 import org.jf.dexlib2.Opcode;
 import org.jf.dexlib2.dexbacked.DexBackedMethod;
+import org.jf.dexlib2.dexbacked.instruction.DexBackedInstruction35c;
+import org.jf.dexlib2.dexbacked.instruction.DexBackedInstruction3rc;
+import org.jf.dexlib2.dexbacked.reference.DexBackedMethodReference;
 import org.jf.dexlib2.iface.Method;
 import org.jf.dexlib2.iface.MethodImplementation;
 import org.jf.dexlib2.iface.MethodParameter;
 import org.jf.dexlib2.iface.instruction.Instruction;
+import org.jf.dexlib2.iface.instruction.ReferenceInstruction;
+import org.jf.dexlib2.iface.reference.Reference;
 import org.jf.dexlib2.util.TypeUtils;
 import org.jf.util.IndentingWriter;
 
@@ -21,10 +27,12 @@ import java.util.List;
 public class AddedMethodDefinition extends MethodDefinition {
 
     private final DexBackedMethod method;
+    private final AddedClassDefinition classDefinition;
 
-    public AddedMethodDefinition(ClassDefinition classDef, DexBackedMethod method, MethodImplementation methodImpl) {
+    public AddedMethodDefinition(AddedClassDefinition classDef, DexBackedMethod method, MethodImplementation methodImpl) {
         super(classDef, method, methodImpl);
         this.method = method;
+        this.classDefinition = classDef;
     }
 
     @Override
@@ -85,7 +93,7 @@ public class AddedMethodDefinition extends MethodDefinition {
         writer.write(".end method\n");
     }
 
-    private boolean canWrite(IndentingWriter writer, MethodItem methodItem) {
+    private boolean canWrite(IndentingWriter writer, MethodItem methodItem) throws IOException {
 //        Instruction instruction = ((InstructionMethodItem<?>) methodItem).getInstruction();
 //        Opcode opcode = instruction.getOpcode();
 //        boolean isStatic = opcode == Opcode.INVOKE_STATIC || opcode == Opcode.INVOKE_STATIC_RANGE;
@@ -103,6 +111,55 @@ public class AddedMethodDefinition extends MethodDefinition {
          * invoke-virtual {p0}, Lcom/zpj/hotfix/demo/NewClass;->getBugClass()Lcom/zpj/hotfix/demo/BugClass;
          * move-result-object v0
          */
+
+
+
+        if (methodItem instanceof InstructionMethodItem) {
+            Instruction instruction = ((InstructionMethodItem<?>) methodItem).getInstruction();
+            Opcode opcode = instruction.getOpcode();
+            boolean isStatic = opcode == Opcode.INVOKE_STATIC || opcode == Opcode.INVOKE_STATIC_RANGE;
+            if (isStatic) {
+                return true;
+            }
+            if (instruction instanceof ReferenceInstruction) {
+                Reference reference = ((ReferenceInstruction) instruction).getReference();
+                if (reference instanceof DexBackedMethodReference) {
+                    // invoke
+                    String clazz = ((DexBackedMethodReference) reference).getDefiningClass();
+                    DiffClassInfo info = Patcher.getClassInfo(clazz);
+                    if (info != null) {
+                        String name = ((DexBackedMethodReference) reference).getName();
+                        List<String> parameterTypes = ((DexBackedMethodReference) reference).getParameterTypes();
+                        boolean isAddedMethod = info.isAddedMethod(name, parameterTypes);
+                        if (isAddedMethod) {
+                            int register;
+                            if (instruction instanceof DexBackedInstruction35c) {
+                                register = ((DexBackedInstruction35c) instruction).getRegisterC();
+                            } else if (instruction instanceof DexBackedInstruction3rc) {
+                                register = ((DexBackedInstruction3rc) instruction).getStartRegister();
+                            } else {
+                                return true;
+                            }
+                            ((DexBackedMethodReference) reference).replaceDefiningClass(info.getFixType());
+                            RegisterFormatter.RegisterInfo registerInfo = registerFormatter.getRegisterInfo(register);
+                            String methodName = "get_" + info.getFixClassName();
+                            String returnType = info.getFixType();
+                            String registerStr = String.valueOf(registerInfo.getRegisterType()) + registerInfo.getRegister();
+                            writer.write("invoke-static {" + registerStr + "}, " + this.classDef.classDef.getType()
+                                    + "->" + methodName + "(" + clazz + ")" + returnType + "\n\n");
+                            writer.write("move-result-object " + registerStr + "\n\n");
+                            String key = returnType + "@" + methodName + "@" + clazz;
+                            if (this.classDefinition.shouldInjectMethod(key)) {
+                                String getMethod = FixMethodBuilder.buildAccessAddedMethod(name, clazz, returnType);
+                                System.out.println("buildAccessAddedMethod:\n\n" + getMethod + "\n\n");
+                                this.classDefinition.putNewMethod(key, getMethod);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         return true;
     }
 

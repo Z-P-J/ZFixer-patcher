@@ -39,7 +39,7 @@ public class Patcher {
 //                "patch", new File("output"))
 //                .doPatch();
 
-        new Patcher(new File("new4.apk"), new File("old.apk"),
+        new Patcher(new File("new5.apk"), new File("old5.apk"),
                 "patch", new File("output"))
                 .doPatch();
     }

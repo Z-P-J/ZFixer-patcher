@@ -120,34 +120,6 @@ public class FixRegisterFormatter extends RegisterFormatter {
         }
     }
 
-    public static class RegisterInfo {
-
-        private char registerType;
-
-        private int register;
-
-        public RegisterInfo(char registerType, int register) {
-            this.registerType = registerType;
-            this.register = register;
-        }
-
-        public char getRegisterType() {
-            return registerType;
-        }
-
-        public int getRegister() {
-            return register;
-        }
-    }
-
-    public RegisterInfo getRegisterInfo(int register) throws IOException {
-        if (!this.options.noParameterRegisters && register >= this.registerCount - this.parameterRegisterCount) {
-            return new RegisterInfo('p', register - (this.registerCount - this.parameterRegisterCount));
-        } else {
-            return new RegisterInfo('v', register);
-        }
-    }
-
     public boolean shouldAddSelfItem(int...registers) throws IOException {
         for (int register : registers) {
             RegisterInfo info = getRegisterInfo(register);

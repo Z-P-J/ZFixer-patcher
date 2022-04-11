@@ -13,11 +13,9 @@ import org.jf.baksmali.Adaptors.CommentingIndentingWriter;
 import org.jf.baksmali.Adaptors.MethodDefinition;
 import org.jf.baksmali.baksmaliOptions;
 import org.jf.dexlib2.AccessFlags;
-import org.jf.dexlib2.Opcode;
 import org.jf.dexlib2.dexbacked.DexBackedMethod;
 import org.jf.dexlib2.iface.Method;
 import org.jf.dexlib2.iface.MethodImplementation;
-import org.jf.dexlib2.util.ReferenceUtil;
 import org.jf.util.IndentingWriter;
 import org.jf.util.StringUtils;
 
@@ -47,6 +45,12 @@ public class FixClassDefinition extends ClassDefinition {
         this.writeInstanceFields(writer, staticFields);
         Set<String> directMethods = this.writeDirectMethods(writer);
         this.writeVirtualMethods(writer, directMethods);
+
+        List<String> newMethodList = getInjectMethodList();
+        for (String newMethod : newMethodList) {
+            writer.write("\n\n");
+            writer.write(newMethod);
+        }
     }
 
     private void writeClass(IndentingWriter writer) throws IOException {
@@ -211,14 +215,6 @@ public class FixClassDefinition extends ClassDefinition {
                 MethodDefinition methodDefinition = createMethodDefinition(this, method, methodImpl);
                 methodDefinition.writeTo(methodWriter);
             }
-        }
-
-        List<String> newMethodList = getInjectMethodList();
-        System.out.println("writeVirtualMethods newMethodSize=" + newMethodList.size());
-        for (String newMethod : newMethodList) {
-            writer.write("\n\n");
-            writer.write(newMethod);
-
         }
     }
 

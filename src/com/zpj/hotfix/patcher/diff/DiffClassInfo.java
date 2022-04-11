@@ -18,12 +18,28 @@ public class DiffClassInfo {
     private final Set<DexBackedField> modifiedFields = new HashSet<>();
     private final Set<DexBackedMethod> modifiedMethods = new HashSet<>();
 
+    private final String fixType;
+
     public DiffClassInfo(DexBackedClassDef oldClazz, DexBackedClassDef newClazz) {
         this.oldClazz = oldClazz;
         this.newClazz = newClazz;
         if (oldClazz != null) {
             compare();
         }
+        String type = this.newClazz.getType();
+        if (isModified()) {
+            this.fixType = type.substring(0, type.length() - 1) + "_Fix;";
+        } else {
+            this.fixType = type;
+        }
+    }
+
+    public String getFixType() {
+        return fixType;
+    }
+
+    public String getFixClassName() {
+        return this.newClazz.getSourceFile().replace(".java", "_Fix");
     }
 
     public boolean isModified() {

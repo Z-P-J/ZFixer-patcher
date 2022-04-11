@@ -52,12 +52,13 @@ public class FixMethodBuilder {
         }
     }
 
-    public static String buildAccessAddedMethod() {
+    public static String buildAccessAddedMethod(String methodName, String parameterType, String returnType) {
         // TODO
         /**
          * 模板
-         * .method public getBugClass()Lcom/zpj/hotfix/demo/BugClass;
-         *     .registers 3
+         * .method private static getBugClass(Lcom/zpj/hotfix/demo/BugClass;)Lcom/zpj/hotfix/demo/BugClass;
+         *     .registers 2
+         *     .param p0, "bugClass"    # Lcom/zpj/hotfix/demo/BugClass;
          *     .annotation system Ldalvik/annotation/Throws;
          *         value = {
          *             Ljava/lang/Exception;
@@ -65,12 +66,9 @@ public class FixMethodBuilder {
          *     .end annotation
          *
          *     .prologue
-         *     .line 37
-         *     iget-object v0, p0, Lcom/zpj/hotfix/demo/NewClass;->bugClass:Lcom/zpj/hotfix/demo/BugClass;
+         *     const-class v0, Lcom/zpj/hotfix/demo/BugClass;
          *
-         *     const-class v1, Lcom/zpj/hotfix/demo/BugClass;
-         *
-         *     invoke-static {v0, v1}, Lcom/zpj/hotfix/FixObjectManager;->get(Ljava/lang/Object;Ljava/lang/Class;)Ljava/lang/Object;
+         *     invoke-static {p0, v0}, Lcom/zpj/hotfix/FixObjectManager;->get(Ljava/lang/Object;Ljava/lang/Class;)Ljava/lang/Object;
          *
          *     move-result-object v0
          *
@@ -79,7 +77,36 @@ public class FixMethodBuilder {
          *     return-object v0
          * .end method
          */
-        return null;
+
+        StringBuilder builder = new StringBuilder();
+
+
+        builder.append(".method private static ").append(methodName).append("(").append(parameterType)
+                .append(")").append(returnType).append("\n\n");
+
+
+        builder.append(".registers 2").append("\n\n");
+
+        builder.append(".param p0, \"bugObj\"    # ").append(parameterType).append("\n\n");
+
+        buildExceptionAnnotation(builder);
+
+        builder.append(".prologue").append("\n\n");
+
+        builder.append("const-class v0, ").append(returnType).append("\n\n");
+
+        builder.append("invoke-static {p0, v0}, Lcom/zpj/hotfix/FixObjectManager;->get(" +
+                "Ljava/lang/Object;Ljava/lang/Class;)Ljava/lang/Object;").append("\n\n");
+
+        builder.append("move-result-object v0").append("\n\n");
+
+        builder.append("check-cast v0, ").append(returnType).append("\n\n");
+
+        builder.append("return-object v0").append("\n\n");
+
+
+
+        return builder.append(".end method").toString();
     }
 
     public static String buildAccessMethod(String methodName, List<String> parameterTypes, String returnType, String bugClazz, String fixClass, boolean isStatic) {
