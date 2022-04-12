@@ -62,10 +62,7 @@ public class FixClassDefinition extends ClassDefinition {
 
     private void writeAccessFlags(IndentingWriter writer) throws IOException {
         AccessFlags[] var2 = AccessFlags.getAccessFlagsForClass(this.classDef.getAccessFlags());
-        int var3 = var2.length;
-
-        for(int var4 = 0; var4 < var3; ++var4) {
-            AccessFlags accessFlag = var2[var4];
+        for (AccessFlags accessFlag : var2) {
             writer.write(accessFlag.toString());
             writer.write(32);
         }

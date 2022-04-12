@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.UnmodifiableIterator;
 import com.zpj.hotfix.patcher.Patcher;
+import com.zpj.hotfix.patcher.diff.DiffClassInfo;
 import com.zpj.hotfix.patcher.utils.FixMethodBuilder;
 import com.zpj.hotfix.patcher.utils.MethodUtils;
 import org.jf.baksmali.Adaptors.*;
@@ -301,6 +302,39 @@ public class FixMethodDefinition extends MethodDefinition {
                         return true;
                     } else {
                         // TODO 新增方法的调用
+                        String clazz = ((DexBackedMethodReference) reference).getDefiningClass();
+                        DiffClassInfo info = Patcher.getClassInfo(clazz);
+                        if (info != null) {
+                            String name = ((DexBackedMethodReference) reference).getName();
+                            List<String> parameterTypes = ((DexBackedMethodReference) reference).getParameterTypes();
+                            boolean isAddedMethod = info.isAddedMethod(name, parameterTypes);
+                            if (isAddedMethod) {
+                                int register = ((DexBackedInstruction35c) instruction).getRegisterC();
+                                ((DexBackedMethodReference) reference).replaceDefiningClass(info.getFixType());
+                                String methodName = "get_" + info.getFixClassName();
+                                String returnType = info.getFixType();
+
+//                                writer.write("invoke-static {" + registerStr + "}, " + this.classDef.classDef.getFixType()
+//                                        + "->" + methodName + "(" + clazz + ")" + returnType + "\n\n");
+
+                                writer.write("invoke-static {");
+                                registerFormatter.writeTo(writer, register);
+                                writer.write("}, " + this.classDef.classDef.getFixType()
+                                        + "->" + methodName + "(" + clazz + ")" + returnType + "\n\n");
+
+                                writer.write("move-result-object ");
+
+                                registerFormatter.writeTo(writer, register);
+                                writer.write("\n\n");
+
+                                String key = returnType + "@" + methodName + "@" + clazz;
+                                if (this.classDef.shouldInjectMethod(key)) {
+                                    String getMethod = FixMethodBuilder.buildAccessAddedMethod(methodName, clazz, returnType);
+                                    System.out.println("buildAccessAddedMethod:\n\n" + getMethod + "\n\n");
+                                    this.classDef.putNewMethod(key, getMethod);
+                                }
+                            }
+                        }
                     }
                 }
             } else if (instruction instanceof DexBackedInstruction3rc) {
@@ -346,6 +380,40 @@ public class FixMethodDefinition extends MethodDefinition {
                         return true;
                     } else {
                         // TODO 新增方法的调用
+                        String clazz = ((DexBackedMethodReference) reference).getDefiningClass();
+                        DiffClassInfo info = Patcher.getClassInfo(clazz);
+                        if (info != null) {
+                            String name = ((DexBackedMethodReference) reference).getName();
+                            List<String> parameterTypes = ((DexBackedMethodReference) reference).getParameterTypes();
+                            boolean isAddedMethod = info.isAddedMethod(name, parameterTypes);
+                            if (isAddedMethod) {
+                                int register = ((DexBackedInstruction3rc) instruction).getStartRegister();
+                                ((DexBackedMethodReference) reference).replaceDefiningClass(info.getFixType());
+                                String methodName = "get_" + info.getFixClassName();
+                                String returnType = info.getFixType();
+
+//                                writer.write("invoke-static {" + registerStr + "}, " + this.classDef.classDef.getFixType()
+//                                        + "->" + methodName + "(" + clazz + ")" + returnType + "\n\n");
+
+                                writer.write("invoke-static {");
+                                registerFormatter.writeTo(writer, register);
+                                writer.write("}, " + this.classDef.classDef.getFixType()
+                                        + "->" + methodName + "(" + clazz + ")" + returnType + "\n\n");
+
+                                writer.write("move-result-object ");
+
+                                registerFormatter.writeTo(writer, register);
+
+                                writer.write("\n\n");
+
+                                String key = returnType + "@" + methodName + "@" + clazz;
+                                if (this.classDef.shouldInjectMethod(key)) {
+                                    String getMethod = FixMethodBuilder.buildAccessAddedMethod(methodName, clazz, returnType);
+                                    System.out.println("buildAccessAddedMethod:\n\n" + getMethod + "\n\n");
+                                    this.classDef.putNewMethod(key, getMethod);
+                                }
+                            }
+                        }
                     }
                 }
             } else if (instruction instanceof DexBackedInstruction22c) {
@@ -383,7 +451,7 @@ public class FixMethodDefinition extends MethodDefinition {
 
                         writer.write("invoke-direct {");
                         // TODO 寄存器
-                        registerFormatter.writeTo(Opcode.INVOKE_DIRECT, writer, registerB);
+                        registerFormatter.writeFirstInvokeTo(writer, registerB);
                         writer.write("}, ");
                         writer.write(fixType);
                         writer.write("->");
@@ -422,7 +490,7 @@ public class FixMethodDefinition extends MethodDefinition {
                         writer.write("invoke-direct {");
                         // TODO 寄存器
 
-                        registerFormatter.writeTo(Opcode.INVOKE_DIRECT, writer, registerB);
+                        registerFormatter.writeFirstInvokeTo(writer, registerB);
                         registerFormatter.writeTo(Opcode.INVOKE_DIRECT, writer, registerA);
 
                         writer.write("}, ");

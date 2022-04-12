@@ -150,7 +150,7 @@ public class AddedMethodDefinition extends MethodDefinition {
                             writer.write("move-result-object " + registerStr + "\n\n");
                             String key = returnType + "@" + methodName + "@" + clazz;
                             if (this.classDefinition.shouldInjectMethod(key)) {
-                                String getMethod = FixMethodBuilder.buildAccessAddedMethod(name, clazz, returnType);
+                                String getMethod = FixMethodBuilder.buildAccessAddedMethod(methodName, clazz, returnType);
                                 System.out.println("buildAccessAddedMethod:\n\n" + getMethod + "\n\n");
                                 this.classDefinition.putNewMethod(key, getMethod);
                             }
