@@ -2,11 +2,11 @@ package com.zpj.hotfix.patcher.fix;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.google.common.collect.UnmodifiableIterator;
 import com.zpj.hotfix.patcher.Patcher;
 import com.zpj.hotfix.patcher.diff.DiffClassInfo;
 import com.zpj.hotfix.patcher.utils.FixMethodBuilder;
 import com.zpj.hotfix.patcher.utils.MethodUtils;
+import com.zpj.hotfix.patcher.utils.TypeHelper;
 import org.jf.baksmali.Adaptors.*;
 import org.jf.baksmali.Adaptors.Debug.DebugMethodItem;
 import org.jf.baksmali.Adaptors.Format.InstructionMethodItem;
@@ -20,6 +20,7 @@ import org.jf.dexlib2.analysis.AnalyzedInstruction;
 import org.jf.dexlib2.analysis.MethodAnalyzer;
 import org.jf.dexlib2.dexbacked.DexBackedDexFile;
 import org.jf.dexlib2.dexbacked.DexBackedMethod;
+import org.jf.dexlib2.dexbacked.instruction.DexBackedInstruction21c;
 import org.jf.dexlib2.dexbacked.instruction.DexBackedInstruction22c;
 import org.jf.dexlib2.dexbacked.instruction.DexBackedInstruction35c;
 import org.jf.dexlib2.dexbacked.instruction.DexBackedInstruction3rc;
@@ -33,7 +34,6 @@ import org.jf.dexlib2.iface.reference.MethodReference;
 import org.jf.dexlib2.iface.reference.Reference;
 import org.jf.dexlib2.immutable.instruction.ImmutableInstruction31t;
 import org.jf.dexlib2.util.InstructionOffsetMap;
-import org.jf.dexlib2.util.ReferenceUtil;
 import org.jf.dexlib2.util.SyntheticAccessorResolver;
 import org.jf.dexlib2.util.TypeUtils;
 import org.jf.util.ExceptionWithContext;
@@ -76,10 +76,10 @@ public class FixMethodDefinition extends MethodDefinition {
             this.packedSwitchMap = new SparseIntArray(0);
             this.sparseSwitchMap = new SparseIntArray(0);
             this.instructionOffsetMap = new InstructionOffsetMap(this.instructions);
-            int endOffset = this.instructionOffsetMap.getInstructionCodeOffset(this.instructions.size() - 1) + ((Instruction) this.instructions.get(this.instructions.size() - 1)).getCodeUnits();
+            int endOffset = this.instructionOffsetMap.getInstructionCodeOffset(this.instructions.size() - 1) + this.instructions.get(this.instructions.size() - 1).getCodeUnits();
 
             for (int i = 0; i < this.instructions.size(); ++i) {
-                Instruction instruction = (Instruction) this.instructions.get(i);
+                Instruction instruction = this.instructions.get(i);
                 Opcode opcode = instruction.getOpcode();
                 boolean valid;
                 int codeOffset;
@@ -137,10 +137,10 @@ public class FixMethodDefinition extends MethodDefinition {
             try {
                 methodString = MethodUtils.getMethodDescriptor(method);
             } catch (Exception var12) {
-                throw ExceptionWithContext.withContext(var15, "Error while processing method", new Object[0]);
+                throw ExceptionWithContext.withContext(var15, "Error while processing method");
             }
 
-            throw ExceptionWithContext.withContext(var15, "Error while processing method %s", new Object[]{methodString});
+            throw ExceptionWithContext.withContext(var15, "Error while processing method %s", methodString);
         }
     }
 
@@ -417,96 +417,189 @@ public class FixMethodDefinition extends MethodDefinition {
                     }
                 }
             } else if (instruction instanceof DexBackedInstruction22c) {
-                int registerA = ((DexBackedInstruction22c) instruction).getRegisterA();
-                int registerB = ((DexBackedInstruction22c) instruction).getRegisterB();
-                System.out.println("instruction getRegisterA=" + registerA + " getRegisterB=" + registerB);
-                Reference reference = ((DexBackedInstruction22c) instruction).getReference();
-                if (reference instanceof FieldReference) {
-                    String definingClass = ((FieldReference) reference).getDefiningClass();
-                    String name = ((FieldReference) reference).getName();
-                    String type = ((FieldReference) reference).getType();
-
-                    System.out.println("DexBackedMethodReference getDefiningClass=" + definingClass);
-                    System.out.println("DexBackedMethodReference getName=" + name);
-                    System.out.println("DexBackedMethodReference type=" + type);
-                    if (opcode == Opcode.IGET_OBJECT && bugType.equals(definingClass)) {
-                        // TODO 替换方法,
-                        /**
-                         *     iget-object v0, p0, bug类->字段名称:字段类型
-                         *              ||
-                         *              ||
-                         *              vv
-                         *     invoke-direct {p0}, fix类->获取字段方法名()字段类型
-                         *     move-result-object v0
-                         */
-                        String getMethodName = "_get_" + name;
-                        String key = type + "@" + getMethodName;
-
-                        if (this.classDef.shouldInjectMethod(key)) {
-                            String getMethod = FixMethodBuilder.buildGetMethod(getMethodName, name, type, bugType, fixType);
-                            System.out.println("buildGetMethod:\n\n" + getMethod + "\n\n");
-                            this.classDef.putNewMethod(key, getMethod);
-                        }
-
-
-                        writer.write("invoke-direct {");
-                        // TODO 寄存器
-                        registerFormatter.writeFirstInvokeTo(writer, registerB);
-                        writer.write("}, ");
-                        writer.write(fixType);
-                        writer.write("->");
-                        writer.write(getMethodName);
-                        writer.write("()");
-                        writer.write(type);
-
-
-                        writer.write("\n\n");
-                        writer.write("move-result-object ");
-                        registerFormatter.writeTo(Opcode.INVOKE_DIRECT, writer, registerA);
-                        writer.write("\n\n");
-
-                        return false;
-
-
-                    } else if (opcode == Opcode.IPUT_OBJECT && bugType.equals(definingClass)) {
-
-                        /**
-                         *     iput-object v0, p0, bug类->字段名:字段类型
-                         *              ||
-                         *              ||
-                         *              vv
-                         *     invoke-direct {p0, v0}, fix类->设置字段方法(字段类型)V
-                         */
-                        String setMethodName = "_set_" + name;
-
-                        String key = setMethodName + "@" + type;
-                        if (this.classDef.shouldInjectMethod(key)) {
-                            String getMethod = FixMethodBuilder.buildSetMethod(setMethodName, name, bugType, fixType);
-                            System.out.println("buildSetMethod:\n\n" + getMethod + "\n\n");
-                            this.classDef.putNewMethod(key, getMethod);
-                        }
-
-
-                        writer.write("invoke-direct {");
-                        // TODO 寄存器
-
-                        registerFormatter.writeFirstInvokeTo(writer, registerB);
-                        registerFormatter.writeTo(Opcode.INVOKE_DIRECT, writer, registerA);
-
-                        writer.write("}, ");
-                        writer.write(fixType);
-                        writer.write("->");
-                        writer.write(setMethodName);
-                        writer.write("(");
-                        writer.write(type);
-                        writer.write(")V");
-                        writer.write("\n\n");
-
-                        return false;
-                    }
-                }
+                return accessField(writer, (DexBackedInstruction22c) instruction);
+            } else if (instruction instanceof DexBackedInstruction21c) {
+                return accessStaticField(writer, (DexBackedInstruction21c) instruction);
             }
         }
+        return true;
+    }
+
+    private boolean accessField(IndentingWriter writer, DexBackedInstruction22c instruction) throws IOException {
+        Opcode opcode = instruction.getOpcode();
+        int registerA = instruction.getRegisterA();
+        int registerB = instruction.getRegisterB();
+        System.out.println("instruction getRegisterA=" + registerA + " getRegisterB=" + registerB);
+        Reference reference = instruction.getReference();
+        if (reference instanceof FieldReference) {
+            String definingClass = ((FieldReference) reference).getDefiningClass();
+            String name = ((FieldReference) reference).getName();
+            String type = ((FieldReference) reference).getType();
+
+            System.out.println("DexBackedMethodReference getDefiningClass=" + definingClass);
+            System.out.println("DexBackedMethodReference getName=" + name);
+            System.out.println("DexBackedMethodReference type=" + type);
+            if (opcode.name.startsWith("iget") && bugType.equals(definingClass)) { // opcode == Opcode.IGET_OBJECT &&
+                // TODO 替换方法,
+                /**
+                 *     iget-object v0, p0, bug类->字段名称:字段类型
+                 *              ||
+                 *              ||
+                 *              vv
+                 *     invoke-direct {p0}, fix类->获取字段方法名()字段类型
+                 *     move-result-object v0
+                 */
+                String getMethodName = "_get_" + name;
+                String key = type + "@" + getMethodName;
+
+                if (this.classDef.shouldInjectMethod(key)) {
+                    String getMethod = FixMethodBuilder.buildGetFieldMethod(getMethodName, name, type, bugType, fixType);
+                    System.out.println("buildGetMethod:\n\n" + getMethod + "\n\n");
+                    this.classDef.putNewMethod(key, getMethod);
+                }
+
+
+                writer.write("invoke-direct {");
+                // TODO 寄存器
+                registerFormatter.writeFirstInvokeTo(writer, registerB);
+                writer.write("}, ");
+                writer.write(fixType);
+                writer.write("->");
+                writer.write(getMethodName);
+                writer.write("()");
+                writer.write(type);
+
+
+                writer.write("\n\n");
+                if (TypeHelper.isPrimitive(type)) {
+                    writer.write("move-result ");
+                } else {
+                    writer.write("move-result-object ");
+                }
+                registerFormatter.writeTo(Opcode.INVOKE_DIRECT, writer, registerA);
+                writer.write("\n\n");
+
+                return false;
+
+
+            } else if (opcode.name.startsWith("iput") && bugType.equals(definingClass)) { // opcode == Opcode.IPUT_OBJECT
+
+                /**
+                 *     iput-object v0, p0, bug类->字段名:字段类型
+                 *              ||
+                 *              ||
+                 *              vv
+                 *     invoke-direct {p0, v0}, fix类->设置字段方法(字段类型)V
+                 */
+                String setMethodName = "_set_" + name;
+
+                String key = setMethodName + "@" + type;
+                if (this.classDef.shouldInjectMethod(key)) {
+                    String getMethod = FixMethodBuilder.buildSetFieldMethod(setMethodName, name, type, bugType, fixType);
+                    System.out.println("buildSetMethod:\n\n" + getMethod + "\n\n");
+                    this.classDef.putNewMethod(key, getMethod);
+                }
+
+
+                writer.write("invoke-direct {");
+                // TODO 寄存器
+
+                registerFormatter.writeFirstInvokeTo(writer, registerB);
+                registerFormatter.writeTo(Opcode.INVOKE_DIRECT, writer, registerA);
+
+                writer.write("}, ");
+                writer.write(fixType);
+                writer.write("->");
+                writer.write(setMethodName);
+                writer.write("(");
+                writer.write(type);
+                writer.write(")V");
+                writer.write("\n\n");
+
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean accessStaticField(IndentingWriter writer, DexBackedInstruction21c instruction) throws IOException {
+        Opcode opcode = instruction.getOpcode();
+        int registerA = instruction.getRegisterA();
+        Reference reference = instruction.getReference();
+        if (reference instanceof FieldReference) {
+            String definingClass = ((FieldReference) reference).getDefiningClass();
+            String name = ((FieldReference) reference).getName();
+            String type = ((FieldReference) reference).getType();
+
+            if (opcode.name.startsWith("sget") && bugType.equals(definingClass)) { // opcode == Opcode.IGET_OBJECT &&
+                // TODO 替换方法,
+                /**
+                 *     sget v0, bug类->字段名称:字段类型
+                 *              ||
+                 *              ||
+                 *              vv
+                 *     invoke-static {}, 当前类->获取字段方法()字段类型
+                 *     move-result v0
+                 */
+                // TODO 不同的类但是可能有相同name的字段，此时方法名应该区分开
+                String getMethodName = "_get_" + name;
+                String key = type + "@" + getMethodName;
+
+                if (this.classDef.shouldInjectMethod(key)) {
+                    String getMethod = FixMethodBuilder.buildGetStaticFieldMethod(getMethodName, name, type, bugType);
+                    System.out.println("buildGetStaticFieldMethod:\n\n" + getMethod + "\n\n");
+                    this.classDef.putNewMethod(key, getMethod);
+                }
+
+                writer.write("invoke-static {}, " + fixType + "->" + getMethodName + "()" + type);
+
+                writer.write("\n\n");
+                if (TypeHelper.isPrimitive(type)) {
+                    writer.write("move-result ");
+                } else {
+                    writer.write("move-result-object ");
+                }
+                registerFormatter.writeTo(writer, registerA);
+                writer.write("\n\n");
+
+                return false;
+
+
+            } else if (opcode.name.startsWith("sput") && bugType.equals(definingClass)) { // opcode == Opcode.IPUT_OBJECT
+
+                /**
+                 *     sput v0, bug类->字段名:字段类型
+                 *              ||
+                 *              ||
+                 *              vv
+                 *     invoke-static {v0}, fix类->设置字段方法(字段类型)V
+                 */
+                String setMethodName = "_set_" + name;
+
+                String key = setMethodName + "@" + type;
+                if (this.classDef.shouldInjectMethod(key)) {
+                    String getMethod = FixMethodBuilder.buildSetStaticFieldMethod(setMethodName, name, type, bugType);
+                    System.out.println("buildSetStaticFieldMethod:\n\n" + getMethod + "\n\n");
+                    this.classDef.putNewMethod(key, getMethod);
+                }
+
+
+                writer.write("invoke-static {");
+                registerFormatter.writeFirstInvokeTo(writer, registerA);
+
+                writer.write("}, ");
+                writer.write(fixType);
+                writer.write("->");
+                writer.write(setMethodName);
+                writer.write("(");
+                writer.write(type);
+                writer.write(")V");
+                writer.write("\n\n");
+
+                return false;
+            }
+        }
+
         return true;
     }
 
@@ -518,12 +611,12 @@ public class FixMethodDefinition extends MethodDefinition {
             throw new MethodDefinition.InvalidSwitchPayload(targetOffset);
         }
 
-        Instruction instruction = (Instruction) this.instructions.get(targetIndex);
+        Instruction instruction = this.instructions.get(targetIndex);
         if (instruction.getOpcode() != type) {
             if (instruction.getOpcode() == Opcode.NOP) {
                 ++targetIndex;
                 if (targetIndex < this.instructions.size()) {
-                    instruction = (Instruction) this.instructions.get(targetIndex);
+                    instruction = this.instructions.get(targetIndex);
                     if (instruction.getOpcode() == type) {
                         return instruction;
                     }
@@ -544,12 +637,12 @@ public class FixMethodDefinition extends MethodDefinition {
             throw new MethodDefinition.InvalidSwitchPayload(targetOffset);
         }
 
-        Instruction instruction = (Instruction) this.instructions.get(targetIndex);
+        Instruction instruction = this.instructions.get(targetIndex);
         if (instruction.getOpcode() != type) {
             if (instruction.getOpcode() == Opcode.NOP) {
                 ++targetIndex;
                 if (targetIndex < this.instructions.size()) {
-                    instruction = (Instruction) this.instructions.get(targetIndex);
+                    instruction = this.instructions.get(targetIndex);
                     if (instruction.getOpcode() == type) {
                         return this.instructionOffsetMap.getInstructionCodeOffset(targetIndex);
                     }
@@ -667,7 +760,7 @@ public class FixMethodDefinition extends MethodDefinition {
         int currentCodeAddress = 0;
 
         for (int i = 0; i < this.effectiveInstructions.size(); ++i) {
-            Instruction instruction = (Instruction) this.effectiveInstructions.get(i);
+            Instruction instruction = this.effectiveInstructions.get(i);
             MethodItem methodItem = InstructionMethodItemFactory.makeInstructionFormatMethodItem(this, currentCodeAddress, instruction);
             methodItems.add(methodItem);
             if (i != this.effectiveInstructions.size() - 1) {
@@ -724,7 +817,7 @@ public class FixMethodDefinition extends MethodDefinition {
         int currentCodeAddress = 0;
 
         for (int i = 0; i < instructions.size(); ++i) {
-            AnalyzedInstruction instruction = (AnalyzedInstruction) instructions.get(i);
+            AnalyzedInstruction instruction = instructions.get(i);
             MethodItem methodItem = InstructionMethodItemFactory.makeInstructionFormatMethodItem(this, currentCodeAddress, instruction.getInstruction());
             methodItems.add(methodItem);
             if (instruction.getInstruction().getOpcode().format == Format.UnresolvedOdexInstruction) {
@@ -763,13 +856,11 @@ public class FixMethodDefinition extends MethodDefinition {
         List<? extends TryBlock<? extends ExceptionHandler>> tryBlocks = this.methodImpl.getTryBlocks();
         if (tryBlocks.size() != 0) {
             int lastInstructionAddress = this.instructionOffsetMap.getInstructionCodeOffset(this.instructions.size() - 1);
-            int codeSize = lastInstructionAddress + ((Instruction) this.instructions.get(this.instructions.size() - 1)).getCodeUnits();
-            Iterator var5 = tryBlocks.iterator();
+            int codeSize = lastInstructionAddress + this.instructions.get(this.instructions.size() - 1).getCodeUnits();
 
-            while (var5.hasNext()) {
-                TryBlock<? extends ExceptionHandler> tryBlock = (TryBlock) var5.next();
-                int startAddress = tryBlock.getStartCodeAddress();
-                int endAddress = startAddress + tryBlock.getCodeUnitCount();
+            for (TryBlock<? extends ExceptionHandler> block : tryBlocks) {
+                int startAddress = block.getStartCodeAddress();
+                int endAddress = startAddress + block.getCodeUnitCount();
                 if (startAddress >= codeSize) {
                     throw new RuntimeException(String.format("Try start offset %d is past the end of the code block.", startAddress));
                 }
@@ -780,13 +871,11 @@ public class FixMethodDefinition extends MethodDefinition {
 
                 int lastCoveredIndex = this.instructionOffsetMap.getInstructionIndexAtCodeOffset(endAddress - 1, false);
                 int lastCoveredAddress = this.instructionOffsetMap.getInstructionCodeOffset(lastCoveredIndex);
-                Iterator var11 = tryBlock.getExceptionHandlers().iterator();
 
-                while (var11.hasNext()) {
-                    ExceptionHandler handler = (ExceptionHandler) var11.next();
+                for (ExceptionHandler handler : block.getExceptionHandlers()) {
                     int handlerAddress = handler.getHandlerCodeAddress();
                     if (handlerAddress >= codeSize) {
-                        throw new ExceptionWithContext("Exception handler offset %d is past the end of the code block.", new Object[]{handlerAddress});
+                        throw new ExceptionWithContext("Exception handler offset %d is past the end of the code block.", handlerAddress);
                     }
 
                     CatchMethodItem catchMethodItem = new CatchMethodItem(this.classDef.options, this.labelCache, lastCoveredAddress, handler.getExceptionType(), startAddress, endAddress, handlerAddress);
@@ -798,10 +887,8 @@ public class FixMethodDefinition extends MethodDefinition {
     }
 
     private void addDebugInfo(List<MethodItem> methodItems) {
-        Iterator var2 = this.methodImpl.getDebugItems().iterator();
 
-        while (var2.hasNext()) {
-            DebugItem debugItem = (DebugItem) var2.next();
+        for (DebugItem debugItem : this.methodImpl.getDebugItems()) {
             methodItems.add(DebugMethodItem.build(this.registerFormatter, debugItem));
         }
 
@@ -811,11 +898,9 @@ public class FixMethodDefinition extends MethodDefinition {
         HashMap<String, Integer> nextLabelSequenceByType = new HashMap();
         ArrayList<LabelMethodItem> sortedLabels = new ArrayList(this.labelCache.getLabels());
         Collections.sort(sortedLabels);
-        Iterator var3 = sortedLabels.iterator();
 
-        while (var3.hasNext()) {
-            LabelMethodItem labelMethodItem = (LabelMethodItem) var3.next();
-            Integer labelSequence = (Integer) nextLabelSequenceByType.get(labelMethodItem.getLabelPrefix());
+        for (LabelMethodItem labelMethodItem : sortedLabels) {
+            Integer labelSequence = nextLabelSequenceByType.get(labelMethodItem.getLabelPrefix());
             if (labelSequence == null) {
                 labelSequence = 0;
             }
@@ -824,36 +909,6 @@ public class FixMethodDefinition extends MethodDefinition {
             nextLabelSequenceByType.put(labelMethodItem.getLabelPrefix(), labelSequence + 1);
         }
 
-    }
-
-    public static class InvalidSwitchPayload extends ExceptionWithContext {
-        private final int payloadOffset;
-
-        public InvalidSwitchPayload(int payloadOffset) {
-            super("No switch payload at offset: %d", new Object[]{payloadOffset});
-            this.payloadOffset = payloadOffset;
-        }
-    }
-
-    public static class LabelCache {
-        protected HashMap<LabelMethodItem, LabelMethodItem> labels = new HashMap();
-
-        public LabelCache() {
-        }
-
-        public LabelMethodItem internLabel(LabelMethodItem labelMethodItem) {
-            LabelMethodItem internedLabelMethodItem = (LabelMethodItem) this.labels.get(labelMethodItem);
-            if (internedLabelMethodItem != null) {
-                return internedLabelMethodItem;
-            } else {
-                this.labels.put(labelMethodItem, labelMethodItem);
-                return labelMethodItem;
-            }
-        }
-
-        public Collection<LabelMethodItem> getLabels() {
-            return this.labels.values();
-        }
     }
 
     public FixRegisterFormatter getRegisterFormatter() {

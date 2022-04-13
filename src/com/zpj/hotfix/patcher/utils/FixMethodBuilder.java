@@ -332,9 +332,9 @@ public class FixMethodBuilder {
      * @param fixClass
      * @return
      */
-    public static String buildGetMethod(String methodName, String fieldName, String returnType, String bugClazz, String fixClass) {
+    public static String buildGetFieldMethod(String methodName, String fieldName, String returnType, String bugClazz, String fixClass) {
         StringBuilder builder = new StringBuilder();
-        builder.append(".method private " + methodName + "()" + returnType).append("\n\n");
+        builder.append(".method private ").append(methodName).append("()").append(returnType).append("\n\n");
         builder.append(".registers 3").append("\n\n");
         buildExceptionAnnotation(builder);
         builder.append(".prologue").append("\n\n");
@@ -371,16 +371,103 @@ public class FixMethodBuilder {
      * @param fixClass
      * @return
      */
-    public static String buildSetMethod(String methodName, String fieldName, String bugClazz, String fixClass) {
+    public static String buildSetFieldMethod(String methodName, String fieldName, String fieldType, String bugClazz, String fixClass) {
         StringBuilder builder = new StringBuilder();
-        builder.append(".method private " + methodName + "()V").append("\n\n");
-        builder.append(".registers 4").append("\n\n");
+        builder.append(".method private ").append(methodName).append("(").append(fieldType).append(")V").append("\n\n");
+        builder.append(".registers 4").append("\n");
+        builder.append(".param p1, \"value\"").append("\n");
         buildExceptionAnnotation(builder);
         builder.append(".prologue").append("\n\n");
         builder.append("iget-object v0, p0, ").append(fixClass).append("->mBugObj:").append(bugClazz).append("\n\n");
         builder.append("const-string v1, \"").append(fieldName).append("\"").append("\n\n");
         builder.append("invoke-static {v0, v1, p1}, Lcom/zpj/hotfix/utils/Reflect;->setField(" +
                 "Ljava/lang/Object;Ljava/lang/String;Ljava/lang/Object;)V").append("\n\n");
+
+        buildReturnSmali(builder, null);
+        return builder.append(".end method").toString();
+    }
+
+    /**
+     * .method public static testGet()I
+     *     .registers 2
+     *     .annotation system Ldalvik/annotation/Throws;
+     *         value = {
+     *             Ljava/lang/Exception;
+     *         }
+     *     .end annotation
+     *
+     *     .prologue
+     *     .line 16
+     *     const-class v0, Lcom/zpj/hotfix/patch_dev/field/Test;
+     *
+     *     const-string v1, "a"
+     *
+     *     invoke-static {v0, v1}, Lcom/zpj/hotfix/utils/Reflect;->getStaticField(Ljava/lang/Class;Ljava/lang/String;)Ljava/lang/Object;
+     *
+     *     move-result-object v0
+     *
+     *     check-cast v0, Ljava/lang/Integer;
+     *
+     *     invoke-virtual {v0}, Ljava/lang/Integer;->intValue()I
+     *
+     *     move-result v0
+     *
+     *     return v0
+     * .end method
+     * @param methodName
+     * @param fieldName
+     * @param returnType
+     * @param bugClazz
+     * @return
+     */
+    public static String buildGetStaticFieldMethod(String methodName, String fieldName, String returnType, String bugClazz) {
+        StringBuilder builder = new StringBuilder();
+        builder.append(".method private static").append(methodName).append("()").append(returnType).append("\n\n");
+        builder.append(".registers 2").append("\n\n");
+        buildExceptionAnnotation(builder);
+        builder.append(".prologue").append("\n\n");
+        builder.append("const-class v0, ").append(bugClazz).append("\n\n");
+        builder.append("const-string v1, \"").append(fieldName).append("\"").append("\n\n");
+        builder.append("invoke-static {v0, v1}, Lcom/zpj/hotfix/utils/Reflect;->getStaticField(" +
+                "Ljava/lang/Class;Ljava/lang/String;)Ljava/lang/Object;").append("\n\n");
+
+        buildReturnSmali(builder, returnType);
+        return builder.append(".end method").toString();
+    }
+
+    /**
+     * .method public static testSet(Ljava/lang/Object;)V
+     *     .registers 3
+     *     .param p0, "value"    # Ljava/lang/Object;
+     *     .annotation system Ldalvik/annotation/Throws;
+     *         value = {
+     *             Ljava/lang/Exception;
+     *         }
+     *     .end annotation
+     *
+     *     .prologue
+     *     const-class v0, Lcom/zpj/hotfix/patch_dev/field/Test;
+     *     const-string v1, "a"
+     *     invoke-static {v0, v1, p0}, Lcom/zpj/hotfix/utils/Reflect;->setStaticField(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/Object;)V
+     *
+     *     return-void
+     * .end method
+     * @param methodName
+     * @param fieldName
+     * @param bugClazz
+     * @return
+     */
+    public static String buildSetStaticFieldMethod(String methodName, String fieldName, String fieldType, String bugClazz) {
+        StringBuilder builder = new StringBuilder();
+        builder.append(".method private ").append(methodName).append("()V").append("\n");
+        builder.append(".registers 3").append("\n\n");
+        builder.append(".param p0, \"value\"    # ").append(fieldType).append("\n");
+        buildExceptionAnnotation(builder);
+        builder.append(".prologue").append("\n\n");
+        builder.append("const-class v0, ").append(bugClazz).append("\n\n");
+        builder.append("const-string v1, \"").append(fieldName).append("\"").append("\n\n");
+        builder.append("invoke-static {v0, v1, p0}, Lcom/zpj/hotfix/utils/Reflect;->setStaticField(" +
+                "Ljava/lang/Class;Ljava/lang/String;Ljava/lang/Object;)V").append("\n\n");
 
         buildReturnSmali(builder, null);
         return builder.append(".end method").toString();
