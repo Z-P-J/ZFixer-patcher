@@ -1,9 +1,16 @@
 package com.zpj.hotfix.patcher;
 
+import brut.androlib.mod.SmaliMod;
 import com.zpj.hotfix.patcher.diff.DiffClassInfo;
 import com.zpj.hotfix.patcher.fix.AddedClassDefinition;
 import com.zpj.hotfix.patcher.fix.FixClassDef;
 import com.zpj.hotfix.patcher.fix.FixClassDefinition;
+import org.antlr.runtime.CommonTokenStream;
+import org.antlr.runtime.RecognitionException;
+import org.antlr.runtime.Token;
+import org.antlr.runtime.TokenSource;
+import org.antlr.runtime.tree.CommonTree;
+import org.antlr.runtime.tree.CommonTreeNodeStream;
 import org.apache.commons.io.FileUtils;
 import org.jf.baksmali.Adaptors.ClassDefinition;
 import org.jf.baksmali.baksmaliOptions;
@@ -14,11 +21,17 @@ import org.jf.dexlib2.dexbacked.DexBackedDexFile;
 import org.jf.dexlib2.iface.ClassDef;
 import org.jf.dexlib2.iface.Method;
 import org.jf.dexlib2.util.SyntheticAccessorResolver;
+import org.jf.dexlib2.writer.builder.DexBuilder;
+import org.jf.dexlib2.writer.io.FileDataStore;
+import org.jf.smali.LexerErrorInterface;
+import org.jf.smali.smaliFlexLexer;
+import org.jf.smali.smaliParser;
+import org.jf.smali.smaliTreeWalker;
+import org.jf.util.ClassFileNameHandler;
 import org.jf.util.IndentingWriter;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.StringWriter;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -33,6 +46,11 @@ public class Patcher {
 
     protected String name;
     protected File out;
+
+    private final File smaliDir;
+    private final File dexFile;
+
+    private final DexBuilder dexBuilder = DexBuilder.makeDexBuilder();
 
     public static void start() {
 //        new Patcher(new File("fix.apk"), new File("bug.apk"),
@@ -103,23 +121,26 @@ public class Patcher {
 
         this.from = from2;
         this.to = to2;
+
+        smaliDir = new File(this.out, "smali");
+        if (!smaliDir.exists()) {
+            smaliDir.mkdir();
+        }
+        dexFile = new File(this.out, "diff.dex");
     }
 
     public void doPatch() {
         try {
-            File smaliDir = new File(this.out, "smali");
-            if (!smaliDir.exists()) {
-                smaliDir.mkdir();
-            }
+
             FileUtils.cleanDirectory(smaliDir);
-            File dexFile = new File(this.out, "diff.dex");
+
             if (!dexFile.exists() || dexFile.delete()) {
                 File outFile = new File(this.out, "diff.apatch");
                 if (!outFile.exists() || outFile.delete()) {
-//                    buildCode(new DexDiffer().diff(this.from, this.to));
 
                     diff(this.from, this.to);
 
+                    dexBuilder.writeTo(new FileDataStore(dexFile));
                     return;
                 }
                 throw new RuntimeException("diff.apatch can't be removed.");
@@ -130,7 +151,7 @@ public class Patcher {
         }
     }
 
-    public void diff(File newFile, File oldFile) throws IOException {
+    public void diff(File newFile, File oldFile) throws IOException, RecognitionException {
 
 
         DexBackedDexFile[] newDexFiles = DexFileFactory.loadDexFiles(newFile, 19, true);
@@ -158,9 +179,12 @@ public class Patcher {
             }
         }
         buildCode();
+
+
+
     }
 
-    private static Set<String> buildCode() {
+    private Set<String> buildCode() throws RecognitionException {
         Set<String> classes2 = new HashSet<>();
         Set<DexBackedClassDef> list = new HashSet<>(DIFF_CLASS_INFO_MAP.keySet());
         baksmaliOptions options = new baksmaliOptions();
@@ -181,7 +205,13 @@ public class Patcher {
         System.out.println("buildCode size=" + list.size());
         System.out.println("=========================");
         for (DexBackedClassDef classDef : list) {
-            testInjectSmali(classDef, options);
+            System.out.println("testInjectSmali className=" + classDef.getType());
+
+//        String smali = getSmali(classDef, options);
+//        System.out.println("testInjectSmali smali=\n" + smali);
+
+            String fixSmali = getFixSmali(classDef, options);
+            System.out.println("testInjectSmali fixSmali=\n" + fixSmali);
         }
         return classes2;
     }
@@ -202,12 +232,18 @@ public class Patcher {
         return code;
     }
 
-    public static String getFixSmali(DexBackedClassDef classDef, baksmaliOptions options) {
+    public String getFixSmali(DexBackedClassDef classDef, baksmaliOptions options) throws RecognitionException {
+        DiffClassInfo classInfo = DIFF_CLASS_INFO_MAP.get(classDef);
+        if (classInfo == null) {
+            return null;
+        }
+
         String code = null;
+        IndentingWriter writer = null;
+
+        ClassFileNameHandler outFileNameHandler = new ClassFileNameHandler(smaliDir, ".smali");
+        File smaliFile = outFileNameHandler.getUniqueFilenameForClass(classInfo.getFixType());
         try {
-            StringWriter stringWriter = new StringWriter();
-            IndentingWriter writer = new IndentingWriter(stringWriter);
-            DiffClassInfo classInfo = DIFF_CLASS_INFO_MAP.get(classDef);
 
             ClassDefinition classDefinition;
             if (classInfo.isModified()) {
@@ -216,25 +252,84 @@ public class Patcher {
                 classDefinition = new AddedClassDefinition(options, classDef);
             }
 
-            classDefinition.writeTo(writer);
-            writer.close();
-            code = stringWriter.toString();
+//            classDefinition.writeTo(writer);
+//            writer.close();
+//            code = stringWriter.toString();
+
+
+            File smaliParent = smaliFile.getParentFile();
+            if (!smaliParent.exists() && !smaliParent.mkdirs() && !smaliParent.exists()) {
+                System.out.println("Unable to create directory " + smaliParent + " - skipping class");
+                return null;
+            }
+
+            if (smaliFile.exists() || smaliFile.createNewFile()) {
+                System.out.println("disassembleClass smaliFile=" + smaliFile);
+                BufferedWriter bufWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(smaliFile), StandardCharsets.UTF_8));
+
+                writer = new IndentingWriter(bufWriter);
+                classDefinition.writeTo(writer);
+
+                assembleSmaliFile(smaliFile, dexBuilder, true, true);
+
+                return code;
+            }
+
+            System.out.println("Unable to create file " + smaliFile + " - skipping class");
         } catch (IOException e) {
             e.printStackTrace();
+            smaliFile.delete();
+        } finally {
+            try {
+                if (writer != null) {
+                    writer.close();
+                }
+            } catch (Throwable var19) {
+                System.out.println("\n\nError occurred while closing file " + smaliFile);
+                var19.printStackTrace();
+            }
         }
 
         return code;
     }
 
-    private static void testInjectSmali(DexBackedClassDef classDef, baksmaliOptions options) {
-        System.out.println("testInjectSmali className=" + classDef.getType());
-        // TODO
+    public static boolean assembleSmaliFile(File smaliFile, DexBuilder dexBuilder, boolean verboseErrors, boolean printTokens) throws IOException, RecognitionException {
+        InputStream is = new FileInputStream(smaliFile);
+        InputStreamReader reader = new InputStreamReader(is, StandardCharsets.UTF_8);
+        smaliFlexLexer lexer = new smaliFlexLexer(reader);
+        lexer.setSourceFile(smaliFile);
+        CommonTokenStream tokens = new CommonTokenStream(lexer);
+        tokens.mark();
+        if (printTokens) {
+            tokens.getTokens();
 
-//        String smali = getSmali(classDef, options);
-//        System.out.println("testInjectSmali smali=\n" + smali);
+            for(int i = 0; i < tokens.size(); ++i) {
+                Token token = tokens.get(i);
+                if (token.getChannel() != 99) {
+//                    System.out.println("printTokens " + smaliParser.tokenNames[token.getType()] + ": " + token.getText());
+                }
+            }
+        }
 
-        String fixSmali = getFixSmali(classDef, options);
-        System.out.println("testInjectSmali fixSmali=\n" + fixSmali);
+        System.out.println("printTokens " + tokens.getTokens().size());
+
+        smaliParser parser = new smaliParser(tokens);
+        parser.setVerboseErrors(verboseErrors);
+        smaliParser.smali_file_return result = parser.smali_file();
+        if (parser.getNumberOfSyntaxErrors() <= 0 && lexer.getNumberOfSyntaxErrors() <= 0) {
+            CommonTree t = result.getTree();
+            CommonTreeNodeStream treeStream = new CommonTreeNodeStream(t);
+            treeStream.setTokenStream(tokens);
+            smaliTreeWalker dexGen = new smaliTreeWalker(treeStream);
+            dexGen.setVerboseErrors(verboseErrors);
+            dexGen.setDexBuilder(dexBuilder);
+            dexGen.smali_file();
+            is.close();
+            reader.close();
+            return dexGen.getNumberOfSyntaxErrors() == 0;
+        } else {
+            return false;
+        }
     }
 
 }
