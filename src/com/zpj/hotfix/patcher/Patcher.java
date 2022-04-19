@@ -57,7 +57,15 @@ public class Patcher {
 //                "patch", new File("output"))
 //                .doPatch();
 
-        new Patcher(new File("new7.apk"), new File("old7.apk"),
+//        new Patcher(new File("new7.apk"), new File("old7.apk"),
+//                "patch", new File("output"))
+//                .doPatch();
+
+//        new Patcher(new File("test_extend_new.apk"), new File("test_extend_old.apk"),
+//                "patch", new File("output"))
+//                .doPatch();
+
+        new Patcher(new File("test_inner_new.apk"), new File("test_inner_old.apk"),
                 "patch", new File("output"))
                 .doPatch();
     }
@@ -270,6 +278,8 @@ public class Patcher {
                 writer = new IndentingWriter(bufWriter);
                 classDefinition.writeTo(writer);
 
+                writer.flush();
+
                 assembleSmaliFile(smaliFile, dexBuilder, true, true);
 
                 return code;
@@ -306,7 +316,7 @@ public class Patcher {
             for(int i = 0; i < tokens.size(); ++i) {
                 Token token = tokens.get(i);
                 if (token.getChannel() != 99) {
-//                    System.out.println("printTokens " + smaliParser.tokenNames[token.getType()] + ": " + token.getText());
+                    System.out.println("printTokens " + smaliParser.tokenNames[token.getType()] + ": " + token.getText());
                 }
             }
         }

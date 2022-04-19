@@ -5,9 +5,11 @@
 
 package com.zpj.hotfix.patcher.fix;
 
+import com.zpj.hotfix.patcher.Patcher;
 import com.zpj.hotfix.patcher.annotation.MethodFixAnnotaion;
 import com.zpj.hotfix.patcher.diff.DiffClassInfo;
 import com.zpj.hotfix.patcher.utils.MethodUtils;
+import com.zpj.hotfix.patcher.utils.TypeHelper;
 import org.jf.baksmali.Adaptors.ClassDefinition;
 import org.jf.baksmali.Adaptors.CommentingIndentingWriter;
 import org.jf.baksmali.Adaptors.MethodDefinition;
@@ -29,10 +31,18 @@ public class FixClassDefinition extends ClassDefinition {
     public final baksmaliOptions options;
     public final FixClassDef classDef;
 
+    private final DiffClassInfo superClassInfo;
+
+    /**
+     * 修复类以普通类的形式（false）还是内部类的形式（true）
+     */
+    private boolean innerClassMode = true;
+
     public FixClassDefinition(baksmaliOptions options, FixClassDef classDef) {
         super(options, classDef);
         this.options = options;
         this.classDef = classDef;
+        superClassInfo = Patcher.getClassInfo(this.classDef.getSuperclass());
     }
 
     public void writeTo(IndentingWriter writer) throws IOException {
@@ -66,23 +76,27 @@ public class FixClassDefinition extends ClassDefinition {
             writer.write(accessFlag.toString());
             writer.write(32);
         }
-
     }
 
     private void writeSuper(IndentingWriter writer) throws IOException {
-        String superClass = this.classDef.getSuperclass();
-        if (superClass != null) {
-            writer.write(".super ");
-            writer.write(superClass);
-            writer.write(10);
+        writer.write(".super ");
+        if (superClassInfo != null && superClassInfo.isModified()) {
+            writer.write(superClassInfo.getFixType());
+        } else {
+            writer.write(TypeHelper.TYPE_OBJECT);
         }
+        writer.write(10);
     }
 
     private void writeSourceFile(IndentingWriter writer) throws IOException {
         String sourceFile = this.classDef.getSourceFile();
         if (sourceFile != null) {
             writer.write(".source \"");
-            StringUtils.writeEscapedString(writer, sourceFile.replace(".", "_Fix."));
+            if (innerClassMode) {
+                StringUtils.writeEscapedString(writer, sourceFile);
+            } else {
+                StringUtils.writeEscapedString(writer, sourceFile.replace(".", "_Fix."));
+            }
             writer.write("\"\n");
         }
     }
@@ -93,7 +107,22 @@ public class FixClassDefinition extends ClassDefinition {
     }
 
     private void writeAnnotations(IndentingWriter writer) throws IOException {
+        if (innerClassMode) {
+//            writer.write("\n# annotations\n" +
+//                    ".annotation system Ldalvik/annotation/EnclosingClass;\n" +
+//                    "    value = " + this.classDef.getType() + "\n" +
+//                    ".end annotation\n" +
+//                    "\n" +
+//                    ".annotation system Ldalvik/annotation/InnerClass;\n" +
+//                    "    accessFlags = 0x0\n" +
+//                    "    name = null\n" +
+//                    ".end annotation\n\n");
 
+            writer.write("\n.annotation system Ldalvik/annotation/InnerClass;\n" +
+                    "    accessFlags = 0x0\n" +
+                    "    name = null\n" +
+                    ".end annotation\n\n");
+        }
     }
 
     private Set<String> writeStaticFields(IndentingWriter writer) throws IOException {
@@ -101,36 +130,46 @@ public class FixClassDefinition extends ClassDefinition {
     }
 
     private void writeInstanceFields(IndentingWriter writer, Set<String> staticFields) throws IOException {
-        writer.write("\n# instance fields\n" +
-                ".field private final mBugObj:" + this.classDef.getType() + "\n\n");
+        if (superClassInfo != null && superClassInfo.isModified()) {
+            return;
+        }
+        if (innerClassMode) {
+            writer.write("\n# instance fields\n" +
+                    ".field private final synthetic mBugObj:" + this.classDef.getType() + "\n\n");
+        } else {
+            writer.write("\n# instance fields\n" +
+                    ".field private final mBugObj:" + this.classDef.getType() + "\n\n");
+        }
+
 
         // TODO
     }
 
     private Set<String> writeDirectMethods(IndentingWriter writer) throws IOException {
-        writer.write("# direct methods\n" +
-                ".method public constructor <init>(" + this.classDef.getType() + ")V\n" +
-                "    .registers 2\n" +
-                "    .param p1, \"mBugObj\"\n" +
-                "\n" +
-                "    .prologue\n" +
-                "    invoke-direct {p0}, Ljava/lang/Object;-><init>()V\n" +
-                "\n" +
-                "    iput-object p1, p0, " + this.classDef.getFixType() + "->mBugObj:" + this.classDef.getType() + "\n" +
-                "\n" +
-                "    return-void\n" +
-                ".end method\n");
-
-
-//        List<String> newMethodList = Patcher.getNewMethodList();
-//        System.out.println("writeDirectMethods newMethodSize=" + newMethodList.size());
-//        for (String newMethod : newMethodList) {
-//            writer.write(newMethod);
-//            writer.write("\n\n");
-//        }
-//        newMethodList.clear();
-
-
+        if (superClassInfo != null && superClassInfo.isModified()) {
+            writer.write(".method public constructor <init>(" + this.classDef.getType() + ")V\n" +
+                    "    .registers 2\n" +
+                    "    .param p1, \"test\"    # " + this.classDef.getType() + "\n" +
+                    "\n" +
+                    "    .prologue\n" +
+                    "    invoke-direct {p0, p1}, " + superClassInfo.getFixType() + "-><init>(" + superClassInfo.getType() + ")V\n" +
+                    "\n" +
+                    "    return-void\n" +
+                    ".end method");
+        } else {
+            writer.write("# direct methods\n" +
+                    ".method public constructor <init>(" + this.classDef.getType() + ")V\n" +
+                    "    .registers 2\n" +
+                    "    .param p1, \"mBugObj\"\n" +
+                    "\n" +
+                    "    .prologue\n" +
+                    "    invoke-direct {p0}, Ljava/lang/Object;-><init>()V\n" +
+                    "\n" +
+                    "    iput-object p1, p0, " + this.classDef.getFixType() + "->mBugObj:" + this.classDef.getType() + "\n" +
+                    "\n" +
+                    "    return-void\n" +
+                    ".end method\n");
+        }
 
         boolean wroteHeader = false;
         Set<String> writtenMethods = new HashSet<>();

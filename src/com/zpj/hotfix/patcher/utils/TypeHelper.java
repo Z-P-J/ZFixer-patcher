@@ -19,7 +19,7 @@ public class TypeHelper {
     private static final Map<String, String> REAL_TYPE_MAP = new HashMap<>();
     private static final Map<String, String> WRAP_TYPE_MAP = new HashMap<>();
 
-    public static final String TYPE_OBJECT = "Ljava/lang/Object";
+    public static final String TYPE_OBJECT = "Ljava/lang/Object;";
 
     static {
 
