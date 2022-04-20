@@ -22,6 +22,18 @@ public class RegisterFormatter {
         this.parameterRegisterCount = parameterRegisterCount;
     }
 
+    public int getRegisterCount() {
+        return registerCount;
+    }
+
+    public int getParameterRegisterCount() {
+        return parameterRegisterCount;
+    }
+
+    public int getStartParameterRegister() {
+        return this.registerCount - this.parameterRegisterCount;
+    }
+
     public void writeRegisterRange(IndentingWriter writer, int startRegister, int lastRegister) throws IOException {
         if (!this.options.noParameterRegisters) {
             assert startRegister <= lastRegister;

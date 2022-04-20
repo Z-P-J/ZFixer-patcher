@@ -130,9 +130,9 @@ public class FixClassDefinition extends ClassDefinition {
     }
 
     private void writeInstanceFields(IndentingWriter writer, Set<String> staticFields) throws IOException {
-        if (superClassInfo != null && superClassInfo.isModified()) {
-            return;
-        }
+//        if (superClassInfo != null && superClassInfo.isModified()) {
+//            return;
+//        }
         if (innerClassMode) {
             writer.write("\n# instance fields\n" +
                     ".field private final synthetic mBugObj:" + this.classDef.getType() + "\n\n");
@@ -153,6 +153,8 @@ public class FixClassDefinition extends ClassDefinition {
                     "\n" +
                     "    .prologue\n" +
                     "    invoke-direct {p0, p1}, " + superClassInfo.getFixType() + "-><init>(" + superClassInfo.getType() + ")V\n" +
+                    "\n" +
+                    "    iput-object p1, p0, " + this.classDef.getFixType() + "->mBugObj:" + this.classDef.getType() + "\n" +
                     "\n" +
                     "    return-void\n" +
                     ".end method");

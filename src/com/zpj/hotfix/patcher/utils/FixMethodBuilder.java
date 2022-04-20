@@ -174,7 +174,7 @@ public class FixMethodBuilder {
                 // TODO 0xi修改为i的8进制或16进制
                 String num = "0x" + i;
                 if (i > 7) {
-                    builder.append("const/16 v").append(3 + i).append(", ").append(Long.toHexString(i)).append("\n\n");
+                    builder.append("const/16 v").append(3 + i).append(", 0x").append(Long.toHexString(i)).append("\n\n");
                 } else {
                     builder.append("const/4 v").append(3 + i).append(", 0x").append(i).append("\n\n");
                 }
@@ -190,7 +190,7 @@ public class FixMethodBuilder {
                 new-array v0, v2, [Ljava/lang/Class;
              */
             if (n > 7) {
-                builder.append("const/16 v2, ").append(Long.toHexString(n)).append("\n\n");
+                builder.append("const/16 v2, 0x").append(Long.toHexString(n)).append("\n\n");
             } else {
                 builder.append("const/4 v2, 0x").append(n).append("\n\n");
             }
@@ -287,6 +287,162 @@ public class FixMethodBuilder {
                         "Ljava/lang/Object;Ljava/lang/String;[Ljava/lang/Class;[Ljava/lang/Object;)Ljava/lang/Object;");
             }
         }
+        builder.append("\n\n");
+
+        buildReturnSmali(builder, returnType);
+        return builder.append(".end method").toString();
+    }
+
+    public static String buildAccessSuperMethod(String methodName, List<String> parameterTypes, String returnType, String bugClazz, String fixClass) {
+        StringBuilder builder = new StringBuilder();
+
+        // .method private 方法名(所有参数类型)返回类型
+        String parameters = String.join("", parameterTypes);
+        String superMethodName = "_super_" + methodName;
+        builder.append(".method private ").append(superMethodName)
+                .append("(").append(parameters).append(")").append(returnType);
+        builder.append("\n\n");
+
+        /*
+            # 寄存器数 = 1（p0） + n（p1~pn） + 4（v0~v3） = n + 5
+            # 参数中每有一个long或double，寄存器数加1
+            int count = n + 5;
+            for arg : args {
+                if arg是long或double
+                    count++;
+            }
+            .registers count
+         */
+
+        int n = parameterTypes.size();
+        int count = n + 5;
+        for (String type : parameterTypes) {
+            if (TypeHelper.isWidthType(type)) {
+                count++;
+            }
+        }
+        builder.append(".registers ").append(count).append("\n\n");
+
+        /*
+            # 定义参数寄存器
+            int index = 1;
+            for (int i = 0; i < n; i++) {
+                .param p[index], "arg[i]"   # 类型
+                if args[i]是long或double:
+                    index++
+                index++;
+            }
+         */
+        int index = 1;
+        for (int i = 0; i < n; i++) {
+            String type = parameterTypes.get(i);
+            builder.append(".param p").append(index++).append(", \"arg").append(i).append("\"   # ").append(type).append("\n\n");
+            if (TypeHelper.isWidthType(type)) {
+                ++index;
+            }
+        }
+
+        buildExceptionAnnotation(builder);
+
+        builder.append(".prologue").append("\n\n");
+
+        /*
+            const/16 v1, 0xn
+            new-array v0, v1, [Ljava/lang/Object;
+         */
+
+        if (n > 7) {
+            builder.append("const/16 v1, 0x").append(Long.toHexString(n));
+        } else {
+            builder.append("const/4 v1, 0x").append(n);
+        }
+        builder.append("\n\n");
+
+        // 创建Object[]数组
+        builder.append("new-array v0, v1, [Ljava/lang/Object;").append("\n\n");
+
+        /*
+            int index = 1;
+            for (int i = 0; i < n; i++) {
+                const/4 v1, 0xi
+                if args[i]是基本数据类型:
+                    # 以int为例
+                    if index > 11 {
+                        if 是long或double:
+                            invoke-static/range {p[index] .. p[++index]}, Ljava/lang/Integer;->valueOf(I)Ljava/lang/Integer;
+                        else
+                            invoke-static/range {p[index] .. p[index]}, Ljava/lang/Integer;->valueOf(I)Ljava/lang/Integer;
+                    } else {
+                        if 是long或double:
+                            invoke-static {p[index], p[++index]}, Ljava/lang/Integer;->valueOf(I)Ljava/lang/Integer;
+                        else
+                            invoke-static {p[index]}, Ljava/lang/Integer;->valueOf(I)Ljava/lang/Integer;
+                    }
+
+                    move-result-object v2
+                    aput-object v2, v0, v1
+                else
+                    aput-object p[index], v0, v1
+                index++
+            }
+         */
+        index = 1;
+        for (int i = 0; i < n; i++) {
+            if (i > 7) {
+                builder.append("const/16 v1, 0x").append(Long.toHexString(i));
+            } else {
+                builder.append("const/4 v1, 0x").append(i);
+            }
+            builder.append("\n\n");
+
+            String type = parameterTypes.get(i);
+            if (TypeHelper.isPrimitive(type)) {
+                boolean isWidthType = TypeHelper.isWidthType(type);
+                String wrapType = TypeHelper.getWrapType(type);
+                if (index > 11) {
+                    if (isWidthType) {
+                        builder.append("invoke-static/range {p").append(index).append(" .. p").append(++index);
+                    } else {
+                        builder.append("invoke-static/range {p").append(index).append(" .. p").append(index);
+                    }
+                } else {
+                    if (isWidthType) {
+                        builder.append("invoke-static {p").append(index).append(", p").append(++index);
+                    } else {
+                        builder.append("invoke-static {p").append(index);
+                    }
+                }
+                builder.append("}, ").append(wrapType).append("->valueOf(").append(type)
+                        .append(")").append(wrapType).append("\n\n");
+                builder.append("move-result-object v2").append("\n\n");
+                builder.append("aput-object v2, v0, v1");
+            } else {
+                builder.append("aput-object p").append(index).append(", v0, v1");
+            }
+            builder.append("\n\n");
+            index++;
+        }
+
+        // .local v0, "arr":[Ljava/lang/Object;
+        builder.append(".local v0, \"arr\":[Ljava/lang/Object;").append("\n\n");
+
+        // iget-object v1, p0, 修复类->mOrigin:原始类
+        builder.append("iget-object v1, p0, ").append(fixClass).append("->mBugObj:").append(bugClazz).append("\n\n");
+
+        // const-string v2, "方法名"
+        builder.append("const-string v2, \"").append(methodName).append("\"").append("\n\n");
+
+        // const-string v3, "方法签名"
+        String signature = MethodUtils.getMethodSignature(parameterTypes, returnType);
+        builder.append("const-string v3, \"").append(signature).append("\"").append("\n\n");
+
+        // invoke-static {v1, v2, v3, v0}, Lcom/zpj/hotfix/utils/Reflect;->invokeSuperVoid(Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;[Ljava/lang/Object;)V
+        if ("V".equals(returnType)) {
+            builder.append("invoke-static {v1, v2, v3, v0}, Lcom/zpj/hotfix/utils/Reflect;->invokeSuperVoid(Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;[Ljava/lang/Object;)V");
+        } else {
+            builder.append("invoke-static {v1, v2, v3, v0}, Lcom/zpj/hotfix/utils/Reflect;->invokeSuperObject(Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/Object;");
+        }
+
         builder.append("\n\n");
 
         buildReturnSmali(builder, returnType);

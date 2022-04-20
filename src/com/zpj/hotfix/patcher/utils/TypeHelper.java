@@ -47,6 +47,10 @@ public class TypeHelper {
         return REAL_TYPE_MAP.containsKey(type);
     }
 
+    public static boolean isWidthType(String type) {
+        return "J".equals(type) || "D".equals(type);
+    }
+
     public static String getRealType(String type) {
         return REAL_TYPE_MAP.getOrDefault(type, type);
     }

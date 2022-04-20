@@ -16,6 +16,8 @@ public class DexBackedInstruction35c extends DexBackedInstruction implements Ins
 
     private Reference reference;
 
+    private int registerC = -1;
+
     public DexBackedInstruction35c(DexBackedDexFile dexFile, Opcode opcode, int instructionStart) {
         super(dexFile, opcode, instructionStart);
     }
@@ -25,7 +27,14 @@ public class DexBackedInstruction35c extends DexBackedInstruction implements Ins
     }
 
     public int getRegisterC() {
-        return NibbleUtils.extractLowUnsignedNibble(this.dexFile.readUbyte(this.instructionStart + 4));
+        if (registerC < 0) {
+            return NibbleUtils.extractLowUnsignedNibble(this.dexFile.readUbyte(this.instructionStart + 4));
+        }
+        return registerC;
+    }
+
+    public void replaceRegisterC(int register) {
+        this.registerC = register;
     }
 
     public int getRegisterD() {

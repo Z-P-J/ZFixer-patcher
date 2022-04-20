@@ -467,7 +467,7 @@ public class InstructionMethodItem<T extends Instruction> extends MethodItem {
         this.writeRegister(writer, ((ThreeRegisterInstruction)this.instruction).getRegisterC());
     }
 
-    protected void writeInvokeRegisters(IndentingWriter writer) throws IOException {
+    public void writeInvokeRegisters(IndentingWriter writer) throws IOException {
         FiveRegisterInstruction instruction = (FiveRegisterInstruction)this.instruction;
         int regCount = instruction.getRegisterCount();
         writer.write(123);
@@ -546,7 +546,7 @@ public class InstructionMethodItem<T extends Instruction> extends MethodItem {
         writer.write(125);
     }
 
-    protected void writeInvokeRangeRegisters(IndentingWriter writer) throws IOException {
+    public void writeInvokeRangeRegisters(IndentingWriter writer) throws IOException {
         RegisterRangeInstruction instruction = (RegisterRangeInstruction)this.instruction;
         int regCount = instruction.getRegisterCount();
         if (regCount == 0) {

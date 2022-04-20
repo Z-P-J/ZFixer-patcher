@@ -65,7 +65,11 @@ public class Patcher {
 //                "patch", new File("output"))
 //                .doPatch();
 
-        new Patcher(new File("test_inner_new.apk"), new File("test_inner_old.apk"),
+//        new Patcher(new File("test_inner_new.apk"), new File("test_inner_old.apk"),
+//                "patch", new File("output"))
+//                .doPatch();
+
+        new Patcher(new File("test_super_new.apk"), new File("test_super_old.apk"),
                 "patch", new File("output"))
                 .doPatch();
     }
@@ -143,17 +147,11 @@ public class Patcher {
             FileUtils.cleanDirectory(smaliDir);
 
             if (!dexFile.exists() || dexFile.delete()) {
-                File outFile = new File(this.out, "diff.apatch");
-                if (!outFile.exists() || outFile.delete()) {
-
-                    diff(this.from, this.to);
-
-                    dexBuilder.writeTo(new FileDataStore(dexFile));
-                    return;
-                }
-                throw new RuntimeException("diff.apatch can't be removed.");
+                diff(this.from, this.to);
+                dexBuilder.writeTo(new FileDataStore(dexFile));
+            } else {
+                throw new RuntimeException("diff.dex can't be removed.");
             }
-            throw new RuntimeException("diff.dex can't be removed.");
         } catch (Exception e2) {
             e2.printStackTrace();
         }
