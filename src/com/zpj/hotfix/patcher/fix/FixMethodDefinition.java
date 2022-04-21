@@ -246,9 +246,11 @@ public class FixMethodDefinition extends MethodDefinition {
             if (this.registerFormatter.getStartParameterRegister() >= 16) {
                 writer.write("move-object/from16 v0, p0");
                 writer.write("\n\n");
+                writer.write("iget-object v0, v0, " + fixType + "->mBugObj:" + bugType);
+            } else {
+                writer.write("iget-object v0, p0, " + fixType + "->mBugObj:" + bugType);
             }
 
-            writer.write("iget-object v0, v0, " + fixType + "->mBugObj:" + bugType);
             writer.write("\n\n");
             writer.write(".local v0, \"_thisBugObj\":" + bugType);
             writer.write("\n\n");
@@ -280,6 +282,7 @@ public class FixMethodDefinition extends MethodDefinition {
                     String name = ((DexBackedMethodReference) reference).getName();
                     String returnType = ((DexBackedMethodReference) reference).getReturnType();
                     List<String> parameterTypes = ((DexBackedMethodReference) reference).getParameterTypes();
+                    String definingClass = ((DexBackedMethodReference) reference).getDefiningClass();
                     if (opcode == Opcode.INVOKE_SUPER) {
                         /*
                             invoke-super {p0}, Lcom/zpj/hotfix/patch_dev/super_method/Base;->test()V
@@ -296,12 +299,22 @@ public class FixMethodDefinition extends MethodDefinition {
                             this.classDef.putNewMethod(key, superMethod);
                         }
 
-                        String parameters = String.join("", parameterTypes);
-                        String superMethodName = "_super_" + name;
-                        writer.write("invoke-direct ");
+
+                        String superMethodName;
+
+                        // 当父类该方法也修复的情况下，此时注入新的访问方法将导致死循环，所以不能新增方法。
+                        DiffClassInfo classInfo = Patcher.getClassInfo(definingClass);
+                        if (classInfo != null && classInfo.isFixMethod(name, parameterTypes)) {
+                            superMethodName = name;
+                            writer.write("invoke-super ");
+                        } else {
+                            superMethodName = "_super_" + name;
+                            writer.write("invoke-direct ");
+                        }
 
                         int registerC = ((DexBackedInstruction35c) instruction).getRegisterC();
                         RegisterFormatter.RegisterInfo registerInfo = this.registerFormatter.getRegisterInfo(registerC);
+                        // 第一个寄存器如果不是p0，则替换为p0
                         if (registerInfo.getRegister() != 0 || registerInfo.getRegisterType() != 'p') {
                             int register = this.registerFormatter.getRegisterCount() - this.registerFormatter.getParameterRegisterCount();
                             ((DexBackedInstruction35c) instruction).replaceRegisterC(register);
@@ -309,13 +322,14 @@ public class FixMethodDefinition extends MethodDefinition {
 
                         ((InstructionMethodItem<?>) methodItem).writeInvokeRegisters(writer);
 
+                        String parameters = String.join("", parameterTypes);
                         writer.write(", " + fixType + "->" + superMethodName + "(" + parameters + ")" + returnType);
 
                         return false;
                     }
 
 
-                    String definingClass = ((DexBackedMethodReference) reference).getDefiningClass();
+
                     if (bugType.equals(definingClass)) {
                         // TODO add new method in fix class
 
@@ -380,6 +394,7 @@ public class FixMethodDefinition extends MethodDefinition {
                     String name = ((DexBackedMethodReference) reference).getName();
                     String returnType = ((DexBackedMethodReference) reference).getReturnType();
                     List<String> parameterTypes = ((DexBackedMethodReference) reference).getParameterTypes();
+                    String definingClass = ((DexBackedMethodReference) reference).getDefiningClass();
                     if (opcode == Opcode.INVOKE_SUPER_RANGE) {
                         /*
                             invoke-super/range {p0 .. p5}, Lcom/zpj/hotfix/patch_dev/super_method/Base;->test(....)V
@@ -388,13 +403,6 @@ public class FixMethodDefinition extends MethodDefinition {
                                 VV
                             invoke-direct/range {p0 .. p5}, Lcom/zpj/hotfix/patch_dev/super_method/Test;->_super_test(....)V
                          */
-
-                        String key = returnType + "@" + name + "@" + parameterTypes;
-                        if (this.classDef.shouldInjectMethod(key)) {
-                            String superMethod = FixMethodBuilder.buildAccessSuperMethod(name, parameterTypes, returnType, bugType, fixType);
-                            System.out.println("buildAccessSuperMethod:\n\n" + superMethod + "\n\n");
-                            this.classDef.putNewMethod(key, superMethod);
-                        }
 
                         // TODO 这里应该也不需要将p0设置给invoke-super/range的第一个寄存器
                         int startRegister = ((DexBackedInstruction3rc) instruction).getStartRegister();
@@ -410,9 +418,30 @@ public class FixMethodDefinition extends MethodDefinition {
                             writer.write("\n\n");
                         }
 
+
+                        DiffClassInfo classInfo = Patcher.getClassInfo(definingClass);
+                        // 修改或新增的super方法直接调用即可
+                        String superMethodName;
+                        if (classInfo != null && classInfo.isFixMethod(name, parameterTypes)) {
+                            superMethodName = name;
+                            writer.write("invoke-super/range ");
+                        } else {
+
+                            String key = returnType + "@" + name + "@" + parameterTypes;
+                            if (this.classDef.shouldInjectMethod(key)) {
+                                String superMethod = FixMethodBuilder.buildAccessSuperMethod(name, parameterTypes, returnType, bugType, fixType);
+                                System.out.println("buildAccessSuperMethod:\n\n" + superMethod + "\n\n");
+                                this.classDef.putNewMethod(key, superMethod);
+                            }
+
+                            superMethodName = "_super_" + name;
+                            writer.write("invoke-direct/range ");
+                        }
+
+
+
                         String parameters = String.join("", parameterTypes);
-                        String superMethodName = "_super_" + name;
-                        writer.write("invoke-direct/range ");
+
 
                         ((InstructionMethodItem<?>) methodItem).writeInvokeRangeRegisters(writer);
 
@@ -421,21 +450,20 @@ public class FixMethodDefinition extends MethodDefinition {
                         return false;
                     }
 
-                    String definingClass = ((DexBackedMethodReference) reference).getDefiningClass();
                     if (bugType.equals(definingClass)) {
                         // add new method in fix class
                         boolean isStatic = (opcode == Opcode.INVOKE_STATIC_RANGE);
 
                         // TODO 当第一个寄存器为vx时，这里应该不用再move-object
-//                        int startRegister = ((DexBackedInstruction3rc) instruction).getStartRegister();
-//                        RegisterFormatter.RegisterInfo info = registerFormatter.getRegisterInfo(startRegister);
-//                        if (!isStatic && registerFormatter.isAddSelfItem() && info.getRegisterType() == 'v') {
-////                            writer.write("move-object v3, p0");
-//                            writer.write("move-object ");
-//                            registerFormatter.writeTo(opcode, writer, startRegister);
-//                            writer.write(", p0");
-//                            writer.write("\n\n");
-//                        }
+                        int startRegister = ((DexBackedInstruction3rc) instruction).getStartRegister();
+                        RegisterFormatter.RegisterInfo info = registerFormatter.getRegisterInfo(startRegister);
+                        if (!isStatic && registerFormatter.isAddSelfItem() && info.getRegisterType() == 'v') {
+//                            writer.write("move-object v3, p0");
+                            writer.write("move-object ");
+                            registerFormatter.writeTo(opcode, writer, startRegister);
+                            writer.write(", p0");
+                            writer.write("\n\n");
+                        }
 
 
                         System.out.println("DexBackedMethodReference getDefiningClass=" + definingClass);
