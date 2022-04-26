@@ -326,11 +326,7 @@ public class FixMethodDefinition extends MethodDefinition {
                         writer.write(", " + fixType + "->" + superMethodName + "(" + parameters + ")" + returnType);
 
                         return false;
-                    }
-
-
-
-                    if (bugType.equals(definingClass)) {
+                    } else if (bugType.equals(definingClass)) {
                         // TODO add new method in fix class
 
                         boolean isStatic = (opcode == Opcode.INVOKE_STATIC);
@@ -351,9 +347,29 @@ public class FixMethodDefinition extends MethodDefinition {
                             }
                         }
 
-                        return true;
+                       if (isStatic) {
+                           writer.write("invoke-static ");
+                       } else {
+                           int registerC = ((DexBackedInstruction35c) instruction).getRegisterC();
+                           RegisterFormatter.RegisterInfo registerInfo = this.registerFormatter.getRegisterInfo(registerC);
+                           // 第一个寄存器如果不是p0，则替换为p0
+                           if (registerInfo.getRegister() != 0 || registerInfo.getRegisterType() != 'p') {
+                               int register = this.registerFormatter.getRegisterCount() - this.registerFormatter.getParameterRegisterCount();
+                               ((DexBackedInstruction35c) instruction).replaceRegisterC(register);
+                           }
+                           writer.write("invoke-direct ");
+                       }
+
+                        ((InstructionMethodItem<?>) methodItem).writeInvokeRegisters(writer);
+
+                        String parameters = String.join("", parameterTypes);
+                        writer.write(", " + fixType + "->" + name + "(" + parameters + ")" + returnType);
+
+                        return false;
+
+//                        return true;
                     } else {
-                        // TODO 新增方法的调用
+                        // 新增方法的调用
                         String clazz = ((DexBackedMethodReference) reference).getDefiningClass();
                         DiffClassInfo info = Patcher.getClassInfo(clazz);
                         if (info != null) {
@@ -448,30 +464,15 @@ public class FixMethodDefinition extends MethodDefinition {
                         writer.write(", " + fixType + "->" + superMethodName + "(" + parameters + ")" + returnType);
 
                         return false;
-                    }
-
-                    if (bugType.equals(definingClass)) {
+                    } else if (bugType.equals(definingClass)) {
                         // add new method in fix class
                         boolean isStatic = (opcode == Opcode.INVOKE_STATIC_RANGE);
-
-                        // TODO 当第一个寄存器为vx时，这里应该不用再move-object
-                        int startRegister = ((DexBackedInstruction3rc) instruction).getStartRegister();
-                        RegisterFormatter.RegisterInfo info = registerFormatter.getRegisterInfo(startRegister);
-                        if (!isStatic && registerFormatter.isAddSelfItem() && info.getRegisterType() == 'v') {
-//                            writer.write("move-object v3, p0");
-                            writer.write("move-object ");
-                            registerFormatter.writeTo(opcode, writer, startRegister);
-                            writer.write(", p0");
-                            writer.write("\n\n");
-                        }
-
 
                         System.out.println("DexBackedMethodReference getDefiningClass=" + definingClass);
                         System.out.println("DexBackedMethodReference getName=" + name);
                         System.out.println("DexBackedMethodReference getReturnType=" + returnType);
                         System.out.println("DexBackedMethodReference getParameterTypes=" + parameterTypes);
 
-                        // TODO 替换其他类中新增方法的调用
                         if (!this.classDef.classDef.getClassInfo().isFixMethod(name, parameterTypes)) {
                             String key = returnType + "@" + name + "@" + parameterTypes;
                             if (this.classDef.shouldInjectMethod(key)) {
@@ -481,7 +482,32 @@ public class FixMethodDefinition extends MethodDefinition {
                             }
                         }
 
-                        return true;
+                        if (isStatic) {
+                            writer.write("invoke-static/range ");
+                        } else {
+
+                            int startRegister = ((DexBackedInstruction3rc) instruction).getStartRegister();
+                            RegisterFormatter.RegisterInfo info = registerFormatter.getRegisterInfo(startRegister);
+                            if (registerFormatter.isAddSelfItem() && info.getRegisterType() == 'v') {
+//                            writer.write("move-object v3, p0");
+                                writer.write("move-object ");
+                                registerFormatter.writeTo(opcode, writer, startRegister);
+                                writer.write(", p0");
+                                writer.write("\n\n");
+                            }
+
+                            writer.write("invoke-direct/range ");
+                        }
+
+                        String parameters = String.join("", parameterTypes);
+
+                        ((InstructionMethodItem<?>) methodItem).writeInvokeRangeRegisters(writer);
+
+                        writer.write(", " + fixType + "->" + name + "(" + parameters + ")" + returnType);
+
+                        return false;
+
+//                        return true;
                     } else {
                         // TODO 新增方法的调用
                         String clazz = ((DexBackedMethodReference) reference).getDefiningClass();
