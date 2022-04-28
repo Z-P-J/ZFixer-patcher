@@ -9,50 +9,48 @@ import org.jf.dexlib2.iface.AnnotationElement;
 import org.jf.dexlib2.iface.value.EncodedValue;
 import org.jf.dexlib2.immutable.value.ImmutableStringEncodedValue;
 
-public class MethodFixAnnotaion extends BaseAnnotation {
+public class FixMethodAnnotation extends BaseAnnotation {
+
     private static final String ANNOTATION = "Lcom/zpj/hotfix/annotation/Fix;";
-    private Set<BaseAnnotationElement> mElements = new HashSet();
+    private final Set<BaseAnnotationElement> mElements = new HashSet<>();
 
-    @Override // org.jf.dexlib2.iface.Annotation
-    public int getVisibility() {
-        return AnnotationVisibility.getVisibility("runtime");
-    }
-
-    @Override // org.jf.dexlib2.iface.BasicAnnotation, org.jf.dexlib2.iface.Annotation
-    public String getType() {
-        return ANNOTATION;
-    }
-
-    public MethodFixAnnotaion(final String clazz, final String method) {
+    public FixMethodAnnotation(final String clazz, final String method) {
         this.mElements.add(new BaseAnnotationElement() {
-            /* class com.euler.patch.annotation.MethodReplaceAnnotaion.AnonymousClass1 */
 
-            @Override // org.jf.dexlib2.iface.AnnotationElement
+            @Override
             public EncodedValue getValue() {
                 return new ImmutableStringEncodedValue(clazz.substring(1, clazz.length() - 1).replace('/', '.'));
             }
 
-            @Override // org.jf.dexlib2.iface.AnnotationElement
+            @Override
             public String getName() {
                 return "clazz";
             }
         });
         this.mElements.add(new BaseAnnotationElement() {
-            /* class com.euler.patch.annotation.MethodReplaceAnnotaion.AnonymousClass2 */
-
-            @Override // org.jf.dexlib2.iface.AnnotationElement
+            @Override
             public EncodedValue getValue() {
                 return new ImmutableStringEncodedValue(method);
             }
 
-            @Override // org.jf.dexlib2.iface.AnnotationElement
+            @Override
             public String getName() {
                 return "method";
             }
         });
     }
 
-    @Override // org.jf.dexlib2.iface.BasicAnnotation, org.jf.dexlib2.iface.Annotation
+    @Override
+    public int getVisibility() {
+        return AnnotationVisibility.getVisibility("runtime");
+    }
+
+    @Override
+    public String getType() {
+        return ANNOTATION;
+    }
+
+    @Override
     public Set<? extends AnnotationElement> getElements() {
         return this.mElements;
     }

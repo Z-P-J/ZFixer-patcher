@@ -14,12 +14,6 @@ public class FixRegisterFormatter extends RegisterFormatter {
     public final int registerCount;
     public final int parameterRegisterCount;
 
-    private boolean addSelfItem;
-
-    public boolean isAddSelfItem() {
-        return addSelfItem;
-    }
-
     public FixRegisterFormatter(baksmaliOptions options, int registerCount, int parameterRegisterCount) {
         super(options, registerCount, parameterRegisterCount);
         this.options = options;
@@ -46,11 +40,6 @@ public class FixRegisterFormatter extends RegisterFormatter {
             }
         }
 
-        if (addSelfItem) {
-            startRegister += 1;
-            lastRegister += 1;
-        }
-
         writer.write("{v");
         writer.printSignedIntAsDec(startRegister);
         writer.write(" .. v");
@@ -62,17 +51,10 @@ public class FixRegisterFormatter extends RegisterFormatter {
         if (!this.options.noParameterRegisters && register >= this.registerCount - this.parameterRegisterCount) {
 
             register = register - (this.registerCount - this.parameterRegisterCount);
-            if (addSelfItem && register == 0) {
-                writer.write('v');
-            } else {
-                writer.write('p');
-            }
+            writer.write('p');
             writer.printSignedIntAsDec(register);
         } else {
             writer.write('v');
-            if (addSelfItem) {
-                register += 1;
-            }
             writer.printSignedIntAsDec(register);
         }
     }
@@ -82,18 +64,10 @@ public class FixRegisterFormatter extends RegisterFormatter {
 
             register = register - (this.registerCount - this.parameterRegisterCount);
 
-            // TODO 排除函数调用
-            if (addSelfItem && register == 0) { //  && opcode.format != Format.Format35c
-                writer.write('v');
-            } else {
-                writer.write('p');
-            }
+            writer.write('p');
             writer.printSignedIntAsDec(register);
         } else {
             writer.write('v');
-            if (addSelfItem) {
-                register += 1;
-            }
             writer.printSignedIntAsDec(register);
         }
     }
@@ -113,9 +87,6 @@ public class FixRegisterFormatter extends RegisterFormatter {
             writer.printSignedIntAsDec(register);
         } else {
             writer.write('v');
-            if (addSelfItem) {
-                register += 1;
-            }
             writer.printSignedIntAsDec(register);
         }
     }
@@ -130,7 +101,4 @@ public class FixRegisterFormatter extends RegisterFormatter {
         return false;
     }
 
-    public void setAddSelfItem(boolean addSelfItem) {
-        this.addSelfItem = addSelfItem;
-    }
 }

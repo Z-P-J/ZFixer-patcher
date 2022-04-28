@@ -6,13 +6,10 @@
 package org.jf.baksmali.Adaptors;
 
 import com.zpj.hotfix.patcher.Patcher;
-import com.zpj.hotfix.patcher.annotation.MethodFixAnnotaion;
-import com.zpj.hotfix.patcher.diff.DiffClassInfo;
-import com.zpj.hotfix.patcher.fix.FixClassDef;
+import com.zpj.hotfix.patcher.annotation.FixMethodAnnotation;
 import com.zpj.hotfix.patcher.utils.MethodUtils;
 import org.jf.baksmali.baksmaliOptions;
 import org.jf.dexlib2.AccessFlags;
-import org.jf.dexlib2.Opcode;
 import org.jf.dexlib2.dexbacked.DexBackedClassDef;
 import org.jf.dexlib2.dexbacked.DexBackedDexFile.InvalidItemIndex;
 import org.jf.dexlib2.dexbacked.DexBackedMethod;
@@ -20,7 +17,6 @@ import org.jf.dexlib2.iface.*;
 import org.jf.dexlib2.iface.instruction.Instruction;
 import org.jf.dexlib2.iface.instruction.formats.Instruction21c;
 import org.jf.dexlib2.iface.reference.FieldReference;
-import org.jf.dexlib2.iface.reference.MethodReference;
 import org.jf.dexlib2.util.ReferenceUtil;
 import org.jf.util.IndentingWriter;
 import org.jf.util.StringUtils;
@@ -257,7 +253,7 @@ public class ClassDefinition {
 //            System.out.println("writeDirectMethods method=" + method.getName());
             if (this.classDef instanceof DexBackedClassDef
                     && Patcher.isModifiedMethod((DexBackedClassDef) this.classDef, method)) {
-                ((DexBackedMethod) method).setMethodReplace(new MethodFixAnnotaion(method.getDefiningClass(), method.getName()));
+                ((DexBackedMethod) method).setMethodReplace(new FixMethodAnnotation(method.getDefiningClass(), method.getName()));
             }
             if (!wroteHeader) {
                 writer.write("\n\n");
@@ -303,7 +299,7 @@ public class ClassDefinition {
             Method method = (Method) virtualMethod;
             if (this.classDef instanceof DexBackedClassDef
                     && Patcher.isModifiedMethod((DexBackedClassDef) this.classDef, method)) {
-                ((DexBackedMethod) method).setMethodReplace(new MethodFixAnnotaion(method.getDefiningClass(), method.getName()));
+                ((DexBackedMethod) method).setMethodReplace(new FixMethodAnnotation(method.getDefiningClass(), method.getName()));
             }
             if (!wroteHeader) {
                 writer.write("\n\n");

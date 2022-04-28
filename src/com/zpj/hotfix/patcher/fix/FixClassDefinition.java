@@ -6,7 +6,7 @@
 package com.zpj.hotfix.patcher.fix;
 
 import com.zpj.hotfix.patcher.Patcher;
-import com.zpj.hotfix.patcher.annotation.MethodFixAnnotaion;
+import com.zpj.hotfix.patcher.annotation.FixMethodAnnotation;
 import com.zpj.hotfix.patcher.diff.DiffClassInfo;
 import com.zpj.hotfix.patcher.utils.MethodUtils;
 import com.zpj.hotfix.patcher.utils.TypeHelper;
@@ -180,7 +180,7 @@ public class FixClassDefinition extends ClassDefinition {
         for (DexBackedMethod method : this.classDef.getDirectMethods(false)) {
 //            System.out.println("writeDirectMethods method=" + method.getName());
             if (classInfo.isModifiedMethod(method)) {
-                method.setMethodReplace(new MethodFixAnnotaion(method.getDefiningClass(), method.getName()));
+                method.setMethodReplace(new FixMethodAnnotation(method.getDefiningClass(), method.getName()));
             } else if (!classInfo.isAddedMethod(method)) {
                 continue;
             }
@@ -222,7 +222,7 @@ public class FixClassDefinition extends ClassDefinition {
             System.out.println("writeVirtualMethods method=" + method.getName() + " virtualMethod=" + method);
 
             if (classInfo.isModifiedMethod(method)) {
-                method.setMethodReplace(new MethodFixAnnotaion(method.getDefiningClass(), method.getName()));
+                method.setMethodReplace(new FixMethodAnnotation(method.getDefiningClass(), method.getName()));
             } else if (!classInfo.isAddedMethod(method)) {
                 continue;
             }
