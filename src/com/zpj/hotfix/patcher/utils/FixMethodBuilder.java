@@ -59,63 +59,6 @@ public class FixMethodBuilder {
         }
     }
 
-    public static String buildAccessAddedMethod(String methodName, String parameterType, String returnType) {
-        // TODO
-        /**
-         * 模板
-         * .method private static getBugClass(Lcom/zpj/hotfix/demo/BugClass;)Lcom/zpj/hotfix/demo/BugClass;
-         *     .registers 2
-         *     .param p0, "bugClass"    # Lcom/zpj/hotfix/demo/BugClass;
-         *     .annotation system Ldalvik/annotation/Throws;
-         *         value = {
-         *             Ljava/lang/Exception;
-         *         }
-         *     .end annotation
-         *
-         *     .prologue
-         *     const-class v0, Lcom/zpj/hotfix/demo/BugClass;
-         *
-         *     invoke-static {p0, v0}, Lcom/zpj/hotfix/FixObjectManager;->get(Ljava/lang/Object;Ljava/lang/Class;)Ljava/lang/Object;
-         *
-         *     move-result-object v0
-         *
-         *     check-cast v0, Lcom/zpj/hotfix/demo/BugClass;
-         *
-         *     return-object v0
-         * .end method
-         */
-
-        StringBuilder builder = new StringBuilder();
-
-
-        builder.append(".method private static ").append(methodName).append("(").append(parameterType)
-                .append(")").append(returnType).append("\n\n");
-
-
-        builder.append(".registers 2").append("\n\n");
-
-        builder.append(".param p0, \"bugObj\"    # ").append(parameterType).append("\n\n");
-
-        buildExceptionAnnotation(builder);
-
-        builder.append(".prologue").append("\n\n");
-
-        builder.append("const-class v0, ").append(returnType).append("\n\n");
-
-        builder.append("invoke-static {p0, v0}, Lcom/zpj/hotfix/FixObjectManager;->get(" +
-                "Ljava/lang/Object;Ljava/lang/Class;)Ljava/lang/Object;").append("\n\n");
-
-        builder.append("move-result-object v0").append("\n\n");
-
-        builder.append("check-cast v0, ").append(returnType).append("\n\n");
-
-        builder.append("return-object v0").append("\n\n");
-
-
-
-        return builder.append(".end method").toString();
-    }
-
     public static String buildAccessMethod(String methodName, String name, List<String> parameterTypes, String returnType,
                                            String bugClazz, boolean isStatic) {
         StringBuilder builder = new StringBuilder();
@@ -340,15 +283,14 @@ public class FixMethodBuilder {
         return builder.append(".end method").toString();
     }
 
-    public static String buildAccessSuperMethod(String methodName, List<String> parameterTypes,
+    public static String buildAccessSuperMethod(String methodName, String name, List<String> parameterTypes,
                                                 String returnType, String bugClazz) {
         StringBuilder builder = new StringBuilder();
 
         // .method private 方法名(所有参数类型)返回类型
         String parameters = String.join("", parameterTypes);
-        String superMethodName = "_super_" + methodName;
-        builder.append(".method private static ").append(superMethodName)
-                .append("(").append(parameters).append(")").append(returnType);
+        builder.append(".method private static ").append(methodName)
+                .append("(").append(bugClazz).append(parameters).append(")").append(returnType);
         builder.append("\n\n");
 
         /*
@@ -447,19 +389,31 @@ public class FixMethodBuilder {
             if (TypeHelper.isPrimitive(type)) {
                 boolean isWidthType = TypeHelper.isWideType(type);
                 String wrapType = TypeHelper.getWrapType(type);
-                if (index > 11) {
-                    if (isWidthType) {
-                        builder.append("invoke-static/range {p").append(index).append(" .. p").append(++index);
-                    } else {
-                        builder.append("invoke-static/range {p").append(index).append(" .. p").append(index);
-                    }
+                int start = index;
+                int end = isWidthType ? ++index : index;
+
+                if (start > 11 || end > 11) {
+                    builder.append("invoke-static/range {p").append(start).append(" .. p").append(end);
                 } else {
+                    builder.append("invoke-static {p").append(start);
                     if (isWidthType) {
-                        builder.append("invoke-static {p").append(index).append(", p").append(++index);
-                    } else {
-                        builder.append("invoke-static {p").append(index);
+                        builder.append(", p").append(end);
                     }
                 }
+
+//                if (index > 11) {
+//                    if (isWidthType) {
+//                        builder.append("invoke-static/range {p").append(index).append(" .. p").append(++index);
+//                    } else {
+//                        builder.append("invoke-static/range {p").append(index).append(" .. p").append(index);
+//                    }
+//                } else {
+//                    if (isWidthType) {
+//                        builder.append("invoke-static {p").append(index).append(", p").append(++index);
+//                    } else {
+//                        builder.append("invoke-static {p").append(index);
+//                    }
+//                }
                 builder.append("}, ").append(wrapType).append("->valueOf(").append(type)
                         .append(")").append(wrapType).append("\n\n");
                 builder.append("move-result-object v2").append("\n\n");
@@ -475,10 +429,10 @@ public class FixMethodBuilder {
         builder.append(".local v0, \"arr\":[Ljava/lang/Object;").append("\n\n");
 
         // move-object v1, p0
-        builder.append("move-object v1, p0");
+        builder.append("move-object v1, p0").append("\n\n");
 
         // const-string v2, "方法名"
-        builder.append("const-string v2, \"").append(methodName).append("\"").append("\n\n");
+        builder.append("const-string v2, \"").append(name).append("\"").append("\n\n");
 
         // const-string v3, "方法签名"
         String signature = MethodUtils.getMethodSignature(parameterTypes, returnType);
@@ -531,9 +485,9 @@ public class FixMethodBuilder {
      */
     public static String buildGetFieldMethod(String methodName, String fieldName, String returnType, String bugClazz) {
         StringBuilder builder = new StringBuilder();
-        boolean isWideType = TypeHelper.isWideType(returnType);
         builder.append(".method private static ").append(methodName).append("(").append(bugClazz).append(")")
                 .append(returnType).append("\n");
+        boolean isWideType = TypeHelper.isWideType(returnType);
         builder.append(".registers ").append(isWideType ? 3 : 2).append("\n");
         builder.append(".param p0, \"_this$p0\"    # ").append(bugClazz).append("\n");
         buildExceptionAnnotation(builder);
@@ -575,8 +529,9 @@ public class FixMethodBuilder {
     public static String buildSetFieldMethod(String methodName, String fieldName, String fieldType,
                                              String bugClazz) {
         StringBuilder builder = new StringBuilder();
+        boolean isWideType = TypeHelper.isWideType(fieldType);
         builder.append(".method private static ").append(methodName).append("(").append(bugClazz).append(fieldType).append(")V").append("\n\n");
-        builder.append(".registers 4").append("\n");
+        builder.append(".registers ").append(isWideType ? 6 : 4).append("\n");
         builder.append(".param p0 \"_this$p0\"    # ").append(bugClazz).append("\n");
         builder.append(".param p1, \"value\"").append("\n");
         buildExceptionAnnotation(builder);
@@ -585,7 +540,13 @@ public class FixMethodBuilder {
 
         if (TypeHelper.isPrimitive(fieldType)) {
             String wrapType = TypeHelper.getWrapType(fieldType);
-            builder.append("invoke-static {p1}, ").append(wrapType).append("->valueOf(")
+            builder.append("invoke-static {");
+            if (isWideType) {
+                builder.append("p1, p2");
+            } else {
+                builder.append("p1");
+            }
+            builder.append("}, ").append(wrapType).append("->valueOf(")
                     .append(fieldType).append(")").append(wrapType).append("\n\n");
             builder.append("move-result-object v1").append("\n\n");
         } else {
@@ -671,14 +632,30 @@ public class FixMethodBuilder {
      */
     public static String buildSetStaticFieldMethod(String methodName, String fieldName, String fieldType, String bugClazz) {
         StringBuilder builder = new StringBuilder();
-        builder.append(".method private ").append(methodName).append("()V").append("\n");
-        builder.append(".registers 3").append("\n\n");
+        boolean isWideType = TypeHelper.isWideType(fieldType);
+        builder.append(".method private ").append(methodName).append("(").append(fieldType).append(")V").append("\n");
+        builder.append(".registers ").append(isWideType ? 6 : 4).append("\n\n");
         builder.append(".param p0, \"value\"    # ").append(fieldType).append("\n");
         buildExceptionAnnotation(builder);
         builder.append(".prologue").append("\n\n");
         builder.append("const-class v0, ").append(bugClazz).append("\n\n");
         builder.append("const-string v1, \"").append(fieldName).append("\"").append("\n\n");
-        builder.append("invoke-static {v0, v1, p0}, Lcom/zpj/hotfix/utils/Reflect;->setStaticField(" +
+        if (TypeHelper.isPrimitive(fieldType)) {
+            String wrapType = TypeHelper.getWrapType(fieldType);
+            builder.append("invoke-static {");
+            if (isWideType) {
+                builder.append("p0, p1");
+            } else {
+                builder.append("p0");
+            }
+            builder.append("}, ").append(wrapType).append("->valueOf(")
+                    .append(fieldType).append(")").append(wrapType).append("\n\n");
+            builder.append("move-result-object v2").append("\n\n");
+        } else {
+            builder.append("move-object v2, p0");
+        }
+        builder.append("\n\n");
+        builder.append("invoke-static {v0, v1, v2}, Lcom/zpj/hotfix/utils/Reflect;->setStaticField(" +
                 "Ljava/lang/Class;Ljava/lang/String;Ljava/lang/Object;)V").append("\n\n");
 
         buildReturnSmali(builder, null);

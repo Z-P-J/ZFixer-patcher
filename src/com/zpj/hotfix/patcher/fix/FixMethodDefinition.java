@@ -198,6 +198,17 @@ public class FixMethodDefinition extends MethodDefinition {
         }
 
         writer.write(10);
+        if (!isStatic) {
+            writer.write(".param p0");
+            if (this.classDef.options.outputDebugInfo) {
+                writer.write(", ");
+                ReferenceFormatter.writeStringReference(writer, "_this$p0");
+            }
+
+            writer.write("    # ");
+            writer.write(this.bugType);
+            writer.write("\n");
+        }
         writeParameters(writer, this.method, this.methodParameters, this.classDef.options);
 
         String containingClass = null;
@@ -244,47 +255,54 @@ public class FixMethodDefinition extends MethodDefinition {
                             invoke-direct {p0}, Lcom/zpj/hotfix/patch_dev/super_method/Test;->_super_test()V
                          */
 
+//                        String fixClass;
+//                        String bugClass;
+//                        String superMethodName = "_super_" + name;
+//
+////                        // 当父类该方法也修复的情况下，此时注入新的访问方法将导致死循环，所以不能新增方法。
+//                        DiffClassInfo classInfo = Patcher.getClassInfo(definingClass);
+//                        if (classInfo != null && classInfo.isFixMethod(name, parameterTypes)) {
+////                            writer.write("invoke-super ");
+//
+//                            fixClass = classInfo.getFixType();
+//                            bugClass = classInfo.getType();
+//
+//                            String key = returnType + "@" + superMethodName + "@" + parameterTypes;
+//                            if (this.classDef.shouldInjectMethod(key)) {
+//                                List<String> parameters = new ArrayList<>();
+//                                parameters.add(bugClass);
+//                                parameters.addAll(parameterTypes);
+//                                String getMethod = FixMethodBuilder.buildAccessMethod(superMethodName, name,
+//                                        parameters, returnType, bugClass, true);
+//                                System.out.println("buildAccessMethod:\n\n" + getMethod + "\n\n");
+//                                this.classDef.putNewMethod(key, getMethod);
+//                            }
+//                        } else {
+//                            fixClass = fixType;
+//                            bugClass = bugType;
+//
+//                            String key = returnType + "@" + name + "@" + parameterTypes;
+//                            if (this.classDef.shouldInjectMethod(key)) {
+//                                String superMethod = FixMethodBuilder.buildAccessSuperMethod(superMethodName, name,
+//                                        parameterTypes, returnType, bugClass);
+//                                System.out.println("buildAccessSuperMethod:\n\n" + superMethod + "\n\n");
+//                                this.classDef.putNewMethod(key, superMethod);
+//                            }
+//                        }
 
-
-
-                        String fixClass;
-                        String bugClass;
                         String superMethodName = "_super_" + name;
-
-//                        // 当父类该方法也修复的情况下，此时注入新的访问方法将导致死循环，所以不能新增方法。
-                        DiffClassInfo classInfo = Patcher.getClassInfo(definingClass);
-                        if (classInfo != null && classInfo.isFixMethod(name, parameterTypes)) {
-//                            writer.write("invoke-super ");
-
-                            fixClass = classInfo.getFixType();
-                            bugClass = classInfo.getType();
-
-                            String key = returnType + "@" + superMethodName + "@" + parameterTypes;
-                            if (this.classDef.shouldInjectMethod(key)) {
-                                List<String> parameters = new ArrayList<>();
-                                parameters.add(bugClass);
-                                parameters.addAll(parameterTypes);
-                                String getMethod = FixMethodBuilder.buildAccessMethod(superMethodName, name,
-                                        parameters, returnType, bugClass, true);
-                                System.out.println("buildAccessMethod:\n\n" + getMethod + "\n\n");
-                                this.classDef.putNewMethod(key, getMethod);
-                            }
-                        } else {
-                            fixClass = fixType;
-                            bugClass = bugType;
-
-                            String key = returnType + "@" + name + "@" + parameterTypes;
-                            if (this.classDef.shouldInjectMethod(key)) {
-                                String superMethod = FixMethodBuilder.buildAccessSuperMethod(name, parameterTypes, returnType, bugClass);
-                                System.out.println("buildAccessSuperMethod:\n\n" + superMethod + "\n\n");
-                                this.classDef.putNewMethod(key, superMethod);
-                            }
+                        String key = returnType + "@" + name + "@" + parameterTypes;
+                        if (this.classDef.shouldInjectMethod(key)) {
+                            String superMethod = FixMethodBuilder.buildAccessSuperMethod(superMethodName, name,
+                                    parameterTypes, returnType, bugType);
+                            System.out.println("buildAccessSuperMethod:\n\n" + superMethod + "\n\n");
+                            this.classDef.putNewMethod(key, superMethod);
                         }
 
                         writer.write("invoke-static ");
                         ((InstructionMethodItem<?>) methodItem).writeInvokeRegisters(writer);
                         String parameters = String.join("", parameterTypes);
-                        writer.write(", " + fixClass + "->" + superMethodName + "(" + bugClass + parameters + ")" + returnType);
+                        writer.write(", " + fixType + "->" + superMethodName + "(" + bugType + parameters + ")" + returnType);
                         return false;
                     } else if (bugType.equals(definingClass)) {
                         boolean isStatic = (opcode == Opcode.INVOKE_STATIC);
@@ -321,30 +339,32 @@ public class FixMethodDefinition extends MethodDefinition {
                         if (info != null) {
                             boolean isAddedMethod = info.isAddedMethod(name, parameterTypes);
                             if (isAddedMethod) {
-                                int register = ((DexBackedInstruction35c) instruction).getRegisterC();
-                                ((DexBackedMethodReference) reference).replaceDefiningClass(info.getFixType());
-                                String methodName = "get_" + info.getFixClassName();
-                                returnType = info.getFixType();
+//                                int register = ((DexBackedInstruction35c) instruction).getRegisterC();
+//                                ((DexBackedMethodReference) reference).replaceDefiningClass(info.getFixType());
+//                                String methodName = "get_" + info.getFixClassName();
+//                                returnType = info.getFixType();
 
 //                                writer.write("invoke-static {" + registerStr + "}, " + this.classDef.classDef.getFixType()
 //                                        + "->" + methodName + "(" + clazz + ")" + returnType + "\n\n");
 
-                                writer.write("invoke-static {");
-                                registerFormatter.writeTo(writer, register);
-                                writer.write("}, " + this.classDef.classDef.getFixType()
-                                        + "->" + methodName + "(" + clazz + ")" + returnType + "\n\n");
+                                String parameters = String.join("", parameterTypes);
+                                writer.write("invoke-static ");
+                                ((InstructionMethodItem<?>) methodItem).writeInvokeRegisters(writer);
+                                writer.write(", " + info.getFixType()
+                                        + "->" + name + "(" + clazz + parameters + ")" + returnType + "\n\n");
 
-                                writer.write("move-result-object ");
-
-                                registerFormatter.writeTo(writer, register);
-                                writer.write("\n\n");
-
-                                String key = returnType + "@" + methodName + "@" + clazz;
-                                if (this.classDef.shouldInjectMethod(key)) {
-                                    String getMethod = FixMethodBuilder.buildAccessAddedMethod(methodName, clazz, returnType);
-                                    System.out.println("buildAccessAddedMethod:\n\n" + getMethod + "\n\n");
-                                    this.classDef.putNewMethod(key, getMethod);
-                                }
+//                                writer.write("move-result-object ");
+//
+//                                registerFormatter.writeTo(writer, register);
+//                                writer.write("\n\n");
+//
+//                                String key = returnType + "@" + methodName + "@" + clazz;
+//                                if (this.classDef.shouldInjectMethod(key)) {
+//                                    String getMethod = FixMethodBuilder.buildAccessAddedMethod(methodName, clazz, returnType);
+//                                    System.out.println("buildAccessAddedMethod:\n\n" + getMethod + "\n\n");
+//                                    this.classDef.putNewMethod(key, getMethod);
+//                                }
+                                return false;
                             }
                         }
                     }
@@ -366,44 +386,56 @@ public class FixMethodDefinition extends MethodDefinition {
                             invoke-direct/range {p0 .. p5}, Lcom/zpj/hotfix/patch_dev/super_method/Test;->_super_test(....)V
                          */
 
-                        String fixClass;
-                        String bugClass;
-                        DiffClassInfo classInfo = Patcher.getClassInfo(definingClass);
-                        // 修改或新增的super方法直接调用即可
+//                        String fixClass;
+//                        String bugClass;
+//                        DiffClassInfo classInfo = Patcher.getClassInfo(definingClass);
+//                        // 修改或新增的super方法直接调用即可
+//                        String superMethodName = "_super_" + name;
+//                        if (classInfo != null && classInfo.isFixMethod(name, parameterTypes)) {
+//
+////                            writer.write("invoke-super/range ");
+//
+//                            fixClass = classInfo.getFixType();
+//                            bugClass = classInfo.getType();
+//
+//                            String key = returnType + "@" + superMethodName + "@" + parameterTypes;
+//                            if (this.classDef.shouldInjectMethod(key)) {
+//                                List<String> parameters = new ArrayList<>();
+//                                parameters.add(bugClass);
+//                                parameters.addAll(parameterTypes);
+//                                String getMethod = FixMethodBuilder.buildAccessMethod(superMethodName, name,
+//                                        parameters, returnType, bugClass, true);
+//                                System.out.println("buildAccessMethod:\n\n" + getMethod + "\n\n");
+//                                this.classDef.putNewMethod(key, getMethod);
+//                            }
+//                        } else {
+//                            fixClass = fixType;
+//                            bugClass = bugType;
+//
+//                            String key = returnType + "@" + name + "@" + parameterTypes;
+//                            if (this.classDef.shouldInjectMethod(key)) {
+//                                String superMethod = FixMethodBuilder.buildAccessSuperMethod(superMethodName, name,
+//                                        parameterTypes, returnType, bugClass);
+//                                System.out.println("buildAccessSuperMethod:\n\n" + superMethod + "\n\n");
+//                                this.classDef.putNewMethod(key, superMethod);
+//                            }
+//                        }
+
+
                         String superMethodName = "_super_" + name;
-                        if (classInfo != null && classInfo.isFixMethod(name, parameterTypes)) {
-
-//                            writer.write("invoke-super/range ");
-
-                            fixClass = classInfo.getFixType();
-                            bugClass = classInfo.getType();
-
-                            String key = returnType + "@" + superMethodName + "@" + parameterTypes;
-                            if (this.classDef.shouldInjectMethod(key)) {
-                                List<String> parameters = new ArrayList<>();
-                                parameters.add(bugClass);
-                                parameters.addAll(parameterTypes);
-                                String getMethod = FixMethodBuilder.buildAccessMethod(superMethodName, name,
-                                        parameters, returnType, bugClass, true);
-                                System.out.println("buildAccessMethod:\n\n" + getMethod + "\n\n");
-                                this.classDef.putNewMethod(key, getMethod);
-                            }
-                        } else {
-                            fixClass = fixType;
-                            bugClass = bugType;
-
-                            String key = returnType + "@" + name + "@" + parameterTypes;
-                            if (this.classDef.shouldInjectMethod(key)) {
-                                String superMethod = FixMethodBuilder.buildAccessSuperMethod(name, parameterTypes, returnType, bugClass);
-                                System.out.println("buildAccessSuperMethod:\n\n" + superMethod + "\n\n");
-                                this.classDef.putNewMethod(key, superMethod);
-                            }
+                        String key = returnType + "@" + name + "@" + parameterTypes;
+                        if (this.classDef.shouldInjectMethod(key)) {
+                            String superMethod = FixMethodBuilder.buildAccessSuperMethod(superMethodName, name,
+                                    parameterTypes, returnType, bugType);
+                            System.out.println("buildAccessSuperMethod:\n\n" + superMethod + "\n\n");
+                            this.classDef.putNewMethod(key, superMethod);
                         }
+
                         writer.write("invoke-static/range ");
 
                         String parameters = String.join("", parameterTypes);
                         ((InstructionMethodItem<?>) methodItem).writeInvokeRangeRegisters(writer);
-                        writer.write(", " + fixClass + "->" + superMethodName + "(" + bugClass + parameters + ")" + returnType);
+                        writer.write(", " + fixType + "->" + superMethodName + "(" + bugType + parameters + ")" + returnType);
                         return false;
                     } else if (bugType.equals(definingClass)) {
                         boolean isStatic = (opcode == Opcode.INVOKE_STATIC_RANGE);
@@ -439,31 +471,38 @@ public class FixMethodDefinition extends MethodDefinition {
                         if (info != null) {
                             boolean isAddedMethod = info.isAddedMethod(name, parameterTypes);
                             if (isAddedMethod) {
-                                int register = ((DexBackedInstruction3rc) instruction).getStartRegister();
-                                ((DexBackedMethodReference) reference).replaceDefiningClass(info.getFixType());
-                                String methodName = "get_" + info.getFixClassName();
-                                returnType = info.getFixType();
-
-//                                writer.write("invoke-static {" + registerStr + "}, " + this.classDef.classDef.getFixType()
+//                                int register = ((DexBackedInstruction3rc) instruction).getStartRegister();
+//                                ((DexBackedMethodReference) reference).replaceDefiningClass(info.getFixType());
+//                                String methodName = "get_" + info.getFixClassName();
+//                                returnType = info.getFixType();
+//
+////                                writer.write("invoke-static {" + registerStr + "}, " + this.classDef.classDef.getFixType()
+////                                        + "->" + methodName + "(" + clazz + ")" + returnType + "\n\n");
+//
+//                                writer.write("invoke-static {");
+//                                registerFormatter.writeTo(writer, register);
+//                                writer.write("}, " + this.classDef.classDef.getFixType()
 //                                        + "->" + methodName + "(" + clazz + ")" + returnType + "\n\n");
+//
+//                                writer.write("move-result-object ");
+//
+//                                registerFormatter.writeTo(writer, register);
+//
+//                                writer.write("\n\n");
+//
+//                                String key = returnType + "@" + methodName + "@" + clazz;
+//                                if (this.classDef.shouldInjectMethod(key)) {
+//                                    String getMethod = FixMethodBuilder.buildAccessAddedMethod(methodName, clazz, returnType);
+//                                    System.out.println("buildAccessAddedMethod:\n\n" + getMethod + "\n\n");
+//                                    this.classDef.putNewMethod(key, getMethod);
+//                                }
 
-                                writer.write("invoke-static {");
-                                registerFormatter.writeTo(writer, register);
-                                writer.write("}, " + this.classDef.classDef.getFixType()
-                                        + "->" + methodName + "(" + clazz + ")" + returnType + "\n\n");
 
-                                writer.write("move-result-object ");
-
-                                registerFormatter.writeTo(writer, register);
-
-                                writer.write("\n\n");
-
-                                String key = returnType + "@" + methodName + "@" + clazz;
-                                if (this.classDef.shouldInjectMethod(key)) {
-                                    String getMethod = FixMethodBuilder.buildAccessAddedMethod(methodName, clazz, returnType);
-                                    System.out.println("buildAccessAddedMethod:\n\n" + getMethod + "\n\n");
-                                    this.classDef.putNewMethod(key, getMethod);
-                                }
+                                String parameters = String.join("", parameterTypes);
+                                writer.write("invoke-static/range ");
+                                ((InstructionMethodItem<?>) methodItem).writeInvokeRangeRegisters(writer);
+                                writer.write(", " + info.getFixType()
+                                        + "->" + name + "(" + clazz + parameters + ")" + returnType + "\n\n");
                             }
                         }
                     }

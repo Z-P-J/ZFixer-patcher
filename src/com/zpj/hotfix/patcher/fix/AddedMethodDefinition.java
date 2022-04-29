@@ -130,30 +130,46 @@ public class AddedMethodDefinition extends MethodDefinition {
                     if (info != null) {
                         String name = ((DexBackedMethodReference) reference).getName();
                         List<String> parameterTypes = ((DexBackedMethodReference) reference).getParameterTypes();
+                        String returnType = ((DexBackedMethodReference) reference).getReturnType();
                         boolean isAddedMethod = info.isAddedMethod(name, parameterTypes);
                         if (isAddedMethod) {
-                            int register;
+
+                            String parameters = String.join("", parameterTypes);
                             if (instruction instanceof DexBackedInstruction35c) {
-                                register = ((DexBackedInstruction35c) instruction).getRegisterC();
+                                writer.write("invoke-static ");
+                                ((InstructionMethodItem<?>) methodItem).writeInvokeRegisters(writer);
                             } else if (instruction instanceof DexBackedInstruction3rc) {
-                                register = ((DexBackedInstruction3rc) instruction).getStartRegister();
+                                writer.write("invoke-static/range ");
+                                ((InstructionMethodItem<?>) methodItem).writeInvokeRangeRegisters(writer);
                             } else {
                                 return true;
                             }
-                            ((DexBackedMethodReference) reference).replaceDefiningClass(info.getFixType());
-                            RegisterFormatter.RegisterInfo registerInfo = registerFormatter.getRegisterInfo(register);
-                            String methodName = "get_" + info.getFixClassName();
-                            String returnType = info.getFixType();
-                            String registerStr = String.valueOf(registerInfo.getRegisterType()) + registerInfo.getRegister();
-                            writer.write("invoke-static {" + registerStr + "}, " + this.classDef.classDef.getType()
-                                    + "->" + methodName + "(" + clazz + ")" + returnType + "\n\n");
-                            writer.write("move-result-object " + registerStr + "\n\n");
-                            String key = returnType + "@" + methodName + "@" + clazz;
-                            if (this.classDefinition.shouldInjectMethod(key)) {
-                                String getMethod = FixMethodBuilder.buildAccessAddedMethod(methodName, clazz, returnType);
-                                System.out.println("buildAccessAddedMethod:\n\n" + getMethod + "\n\n");
-                                this.classDefinition.putNewMethod(key, getMethod);
-                            }
+                            writer.write(", " + info.getFixType()
+                                    + "->" + name + "(" + clazz + parameters + ")" + returnType + "\n\n");
+
+
+//                            int register;
+//                            if (instruction instanceof DexBackedInstruction35c) {
+//                                register = ((DexBackedInstruction35c) instruction).getRegisterC();
+//                            } else if (instruction instanceof DexBackedInstruction3rc) {
+//                                register = ((DexBackedInstruction3rc) instruction).getStartRegister();
+//                            } else {
+//                                return true;
+//                            }
+//                            ((DexBackedMethodReference) reference).replaceDefiningClass(info.getFixType());
+//                            RegisterFormatter.RegisterInfo registerInfo = registerFormatter.getRegisterInfo(register);
+//                            String methodName = "get_" + info.getFixClassName();
+//                            String returnType = info.getFixType();
+//                            String registerStr = String.valueOf(registerInfo.getRegisterType()) + registerInfo.getRegister();
+//                            writer.write("invoke-static {" + registerStr + "}, " + this.classDef.classDef.getType()
+//                                    + "->" + methodName + "(" + clazz + ")" + returnType + "\n\n");
+//                            writer.write("move-result-object " + registerStr + "\n\n");
+//                            String key = returnType + "@" + methodName + "@" + clazz;
+//                            if (this.classDefinition.shouldInjectMethod(key)) {
+//                                String getMethod = FixMethodBuilder.buildAccessAddedMethod(methodName, clazz, returnType);
+//                                System.out.println("buildAccessAddedMethod:\n\n" + getMethod + "\n\n");
+//                                this.classDefinition.putNewMethod(key, getMethod);
+//                            }
                         }
                     }
                 }

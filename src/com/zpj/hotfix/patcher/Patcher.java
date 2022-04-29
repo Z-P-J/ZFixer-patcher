@@ -53,9 +53,9 @@ public class Patcher {
     private final DexBuilder dexBuilder = DexBuilder.makeDexBuilder();
 
     public static void start() {
-//        new Patcher(new File("fix.apk"), new File("bug.apk"),
-//                "patch", new File("output"))
-//                .doPatch();
+        new Patcher(new File("fix.apk"), new File("bug.apk"),
+                "patch", new File("output"))
+                .doPatch();
 
 //        new Patcher(new File("new7.apk"), new File("old7.apk"),
 //                "patch", new File("output"))
@@ -69,9 +69,9 @@ public class Patcher {
 //                "patch", new File("output"))
 //                .doPatch();
 
-        new Patcher(new File("test_super_new.apk"), new File("test_super_old.apk"),
-                "patch", new File("output"))
-                .doPatch();
+//        new Patcher(new File("test_super_new.apk"), new File("test_super_old.apk"),
+//                "patch", new File("output"))
+//                .doPatch();
     }
 
     public static boolean isModifiedClass(DexBackedClassDef classDef) {

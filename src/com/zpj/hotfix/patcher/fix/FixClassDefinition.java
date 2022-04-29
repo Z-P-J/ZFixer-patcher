@@ -31,7 +31,7 @@ public class FixClassDefinition extends ClassDefinition {
     public final baksmaliOptions options;
     public final FixClassDef classDef;
 
-    private final DiffClassInfo superClassInfo;
+//    private final DiffClassInfo superClassInfo;
 
     /**
      * 修复类以普通类的形式（false）还是内部类的形式（true）
@@ -42,7 +42,7 @@ public class FixClassDefinition extends ClassDefinition {
         super(options, classDef);
         this.options = options;
         this.classDef = classDef;
-        superClassInfo = Patcher.getClassInfo(this.classDef.getSuperclass());
+//        superClassInfo = Patcher.getClassInfo(this.classDef.getSuperclass());
     }
 
     public void writeTo(IndentingWriter writer) throws IOException {
@@ -80,11 +80,12 @@ public class FixClassDefinition extends ClassDefinition {
 
     private void writeSuper(IndentingWriter writer) throws IOException {
         writer.write(".super ");
-        if (superClassInfo != null && superClassInfo.isModified()) {
-            writer.write(superClassInfo.getFixType());
-        } else {
-            writer.write(TypeHelper.TYPE_OBJECT);
-        }
+//        if (superClassInfo != null && superClassInfo.isModified()) {
+//            writer.write(superClassInfo.getFixType());
+//        } else {
+//            writer.write(TypeHelper.TYPE_OBJECT);
+//        }
+        writer.write(TypeHelper.TYPE_OBJECT);
         writer.write(10);
     }
 
@@ -130,48 +131,32 @@ public class FixClassDefinition extends ClassDefinition {
     }
 
     private void writeInstanceFields(IndentingWriter writer, Set<String> staticFields) throws IOException {
-//        if (superClassInfo != null && superClassInfo.isModified()) {
-//            return;
+
+//        if (innerClassMode) {
+//            writer.write("\n# instance fields\n" +
+//                    ".field private final synthetic mBugObj:" + this.classDef.getType() + "\n\n");
+//        } else {
+//            writer.write("\n# instance fields\n" +
+//                    ".field private final mBugObj:" + this.classDef.getType() + "\n\n");
 //        }
-        if (innerClassMode) {
-            writer.write("\n# instance fields\n" +
-                    ".field private final synthetic mBugObj:" + this.classDef.getType() + "\n\n");
-        } else {
-            writer.write("\n# instance fields\n" +
-                    ".field private final mBugObj:" + this.classDef.getType() + "\n\n");
-        }
 
 
         // TODO
     }
 
     private Set<String> writeDirectMethods(IndentingWriter writer) throws IOException {
-        if (superClassInfo != null && superClassInfo.isModified()) {
-            writer.write(".method public constructor <init>(" + this.classDef.getType() + ")V\n" +
-                    "    .registers 2\n" +
-                    "    .param p1, \"test\"    # " + this.classDef.getType() + "\n" +
-                    "\n" +
-                    "    .prologue\n" +
-                    "    invoke-direct {p0, p1}, " + superClassInfo.getFixType() + "-><init>(" + superClassInfo.getType() + ")V\n" +
-                    "\n" +
-                    "    iput-object p1, p0, " + this.classDef.getFixType() + "->mBugObj:" + this.classDef.getType() + "\n" +
-                    "\n" +
-                    "    return-void\n" +
-                    ".end method");
-        } else {
-            writer.write("# direct methods\n" +
-                    ".method public constructor <init>(" + this.classDef.getType() + ")V\n" +
-                    "    .registers 2\n" +
-                    "    .param p1, \"mBugObj\"\n" +
-                    "\n" +
-                    "    .prologue\n" +
-                    "    invoke-direct {p0}, Ljava/lang/Object;-><init>()V\n" +
-                    "\n" +
-                    "    iput-object p1, p0, " + this.classDef.getFixType() + "->mBugObj:" + this.classDef.getType() + "\n" +
-                    "\n" +
-                    "    return-void\n" +
-                    ".end method\n");
-        }
+//        writer.write("# direct methods\n" +
+//                ".method public constructor <init>(" + this.classDef.getType() + ")V\n" +
+//                "    .registers 2\n" +
+//                "    .param p1, \"mBugObj\"\n" +
+//                "\n" +
+//                "    .prologue\n" +
+//                "    invoke-direct {p0}, Ljava/lang/Object;-><init>()V\n" +
+//                "\n" +
+//                "    iput-object p1, p0, " + this.classDef.getFixType() + "->mBugObj:" + this.classDef.getType() + "\n" +
+//                "\n" +
+//                "    return-void\n" +
+//                ".end method\n");
 
         boolean wroteHeader = false;
         Set<String> writtenMethods = new HashSet<>();
